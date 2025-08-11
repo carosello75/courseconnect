@@ -163,6 +163,88 @@ def health_check():
             'timestamp': datetime.utcnow().isoformat()
         }), 500
 
+@app.route('/api/init-db', methods=['GET'])
+def init_database():
+    """Inizializza database - chiamare una volta"""
+    try:
+        # Forza creazione tabelle
+        db.create_all()
+        
+        # Crea admin se non esiste
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(
+                username='admin',
+                email='admin@courseconnect.it',
+                nome='Admin',
+                cognome='CourseConnect',
+                corso='Amministratore',
+                is_admin=True
+            )
+            admin.set_password('admin123')
+            db.session.add(admin)
+            
+            # Utenti esempio
+            users_data = [
+                {
+                    'username': 'marco_dev',
+                    'email': 'marco@example.com',
+                    'nome': 'Marco',
+                    'cognome': 'Rossi',
+                    'corso': 'Sviluppo Web Full-Stack',
+                    'bio': '🚀 Appassionato di tecnologia e coding'
+                },
+                {
+                    'username': 'sofia_design',
+                    'email': 'sofia@example.com',
+                    'nome': 'Sofia',
+                    'cognome': 'Bianchi',
+                    'corso': 'UI/UX Design',
+                    'bio': '🎨 Designer creativa con passione per l\'estetica'
+                }
+            ]
+            
+            for user_data in users_data:
+                user = User(**user_data)
+                user.set_password('password123')
+                db.session.add(user)
+            
+            db.session.commit()
+            
+            # Post esempio
+            posts_data = [
+                {
+                    'content': '🎉 Benvenuti in CourseConnect! Il social network dedicato ai corsisti. Condividiamo esperienze, progetti e cresciamo insieme! 🚀',
+                    'user_id': admin.id
+                },
+                {
+                    'content': '💻 Oggi ho completato il mio primo progetto React! Le sensazioni sono incredibili quando vedi il codice prendere vita nel browser. Chi altro sta imparando React?',
+                    'user_id': 2  # marco_dev
+                }
+            ]
+            
+            for post_data in posts_data:
+                post = Post(**post_data)
+                db.session.add(post)
+            
+            db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Database inizializzato con successo!',
+            'users_count': User.query.count(),
+            'posts_count': Post.query.count(),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
+
 @app.route('/api/register', methods=['POST'])
 def register():
     """Registrazione nuovo utente"""
