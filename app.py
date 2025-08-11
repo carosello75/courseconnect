@@ -33,8 +33,7 @@ if db_url.startswith('sqlite'):
 
 # Cookie session un po' più sicuri
 app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
-# In HTTPS conviene True (Render usa HTTPS sul dominio pubblico)
-app.config.setdefault('SESSION_COOKIE_SECURE', True)
+app.config.setdefault('SESSION_COOKIE_SECURE', True)  # True su HTTPS (Render)
 
 db = SQLAlchemy(app)
 
@@ -154,15 +153,11 @@ def get_current_user():
     uid = session.get('user_id')
     if not uid:
         return None
-    # API 2.0 style
     return db.session.get(User, uid)
 
 
 def _seed_data():
-    """
-    Popola dati di esempio in modo idempotente.
-    Verrà chiamata da create_tables() solo quando necessario.
-    """
+    """Popola dati demo in modo idempotente."""
     created_something = False
 
     admin = User.query.filter_by(username='admin').first()
@@ -179,8 +174,7 @@ def _seed_data():
         db.session.add(admin)
         created_something = True
 
-    # Utenti esempio
-    users_examples = [
+    examples = [
         {
             'username': 'marco_dev',
             'email': 'marco@example.com',
@@ -198,7 +192,7 @@ def _seed_data():
             'bio': '🎨 Designer creativa con passione per l\'estetica'
         }
     ]
-    for u in users_examples:
+    for u in examples:
         if not User.query.filter_by(username=u['username']).first():
             user = User(**u)
             user.set_password('password123')
@@ -208,11 +202,9 @@ def _seed_data():
     if created_something:
         db.session.commit()
 
-    # Post demo (solo se non ce ne sono)
     if Post.query.count() == 0:
         admin = User.query.filter_by(username='admin').first()
         marco = User.query.filter_by(username='marco_dev').first()
-
         demo_posts = [
             {
                 'content': '🎉 Benvenuti in CourseConnect! Il social network dedicato ai corsisti. Condividiamo esperienze, progetti e cresciamo insieme! 🚀',
@@ -220,7 +212,7 @@ def _seed_data():
             },
             {
                 'content': '💻 Oggi ho completato il mio primo progetto React! Le sensazioni sono incredibili quando vedi il codice prendere vita nel browser. Chi altro sta imparando React?',
-                'user_id': marco.id if marco else (admin.id if admin else None)
+                'user_id': (marco or admin).id if (marco or admin) else None
             }
         ]
         for p in demo_posts:
@@ -241,7 +233,6 @@ def create_tables():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check per monitoring"""
     try:
         db.session.execute(text('SELECT 1'))
         return jsonify({
@@ -252,16 +243,11 @@ def health_check():
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
-        }), 500
+        return jsonify({'status': 'error', 'error': str(e), 'timestamp': datetime.utcnow().isoformat()}), 500
 
 
 @app.route('/api/init-db', methods=['GET'])
 def init_database():
-    """Inizializza/ri-seeda database (idempotente)"""
     try:
         create_tables()
         return jsonify({
@@ -273,29 +259,20 @@ def init_database():
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            'status': 'error',
-            'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
-        }), 500
+        return jsonify({'status': 'error', 'error': str(e), 'timestamp': datetime.utcnow().isoformat()}), 500
 
 
 @app.route('/api/register', methods=['POST'])
 def register():
-    """Registrazione nuovo utente"""
     try:
         data = request.get_json(silent=True) or {}
-
         required = ['username', 'email', 'nome', 'cognome', 'corso', 'password']
         if not all(data.get(k) for k in required):
             return jsonify({'error': 'Tutti i campi sono obbligatori'}), 400
-
         if len(data['password']) < 6:
             return jsonify({'error': 'La password deve avere almeno 6 caratteri'}), 400
-
         if User.query.filter_by(username=data['username']).first():
             return jsonify({'error': 'Username già in uso'}), 400
-
         if User.query.filter_by(email=data['email']).first():
             return jsonify({'error': 'Email già registrata'}), 400
 
@@ -305,18 +282,13 @@ def register():
             nome=data['nome'].strip(),
             cognome=data['cognome'].strip(),
             corso=data['corso'].strip(),
-            bio=data.get('bio', '').strip()
+            bio=(data.get('bio') or '').strip()
         )
         user.set_password(data['password'])
         db.session.add(user)
         db.session.commit()
-
         session['user_id'] = user.id
-
-        return jsonify({
-            'message': 'Registrazione completata',
-            'user': user.to_dict()
-        })
+        return jsonify({'message': 'Registrazione completata', 'user': user.to_dict()})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Errore registrazione: {str(e)}'}), 500
@@ -324,36 +296,27 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    """Login utente"""
     try:
         data = request.get_json(silent=True) or {}
         if not data.get('username') or not data.get('password'):
             return jsonify({'error': 'Username e password richiesti'}), 400
-
         user = User.query.filter_by(username=data['username']).first()
         if not user or not user.check_password(data['password']):
             return jsonify({'error': 'Credenziali non valide'}), 401
-
         session['user_id'] = user.id
-
-        return jsonify({
-            'message': 'Login effettuato',
-            'user': user.to_dict()
-        })
+        return jsonify({'message': 'Login effettuato', 'user': user.to_dict()})
     except Exception as e:
         return jsonify({'error': f'Errore login: {str(e)}'}), 500
 
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
-    """Logout utente"""
     session.pop('user_id', None)
     return jsonify({'message': 'Logout effettuato'})
 
 
 @app.route('/api/me', methods=['GET'])
 def get_current_user_info():
-    """Informazioni utente corrente"""
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Non autenticato'}), 401
@@ -361,15 +324,8 @@ def get_current_user_info():
 
 
 def _paginate_posts(page, per_page):
-    """
-    Compat con Flask-SQLAlchemy 3.x:
-    - Se esiste Query.paginate: usala
-    - Altrimenti usa db.paginate(Select)
-    """
     try:
-        return Post.query.order_by(Post.created_at.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
+        return Post.query.order_by(Post.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     except AttributeError:
         stmt = db.select(Post).order_by(Post.created_at.desc())
         return db.paginate(stmt, page=page, per_page=per_page, error_out=False)
@@ -377,14 +333,11 @@ def _paginate_posts(page, per_page):
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
-    """Ottieni feed post (pubblico)"""
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
-
         posts = _paginate_posts(page, per_page)
         current_user = get_current_user()
-
         return jsonify({
             'posts': [post.to_dict(current_user) for post in posts.items],
             'has_next': posts.has_next,
@@ -398,23 +351,19 @@ def get_posts():
 
 @app.route('/api/posts', methods=['POST'])
 def create_post():
-    """Crea nuovo post (richiede login)"""
     try:
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Login richiesto'}), 401
-
         data = request.get_json(silent=True) or {}
         content = (data.get('content') or '').strip()
         if not content:
             return jsonify({'error': 'Contenuto post richiesto'}), 400
         if len(content) > 2000:
             return jsonify({'error': 'Post troppo lungo (max 2000 caratteri)'}), 400
-
         post = Post(content=content, user_id=user.id)
         db.session.add(post)
         db.session.commit()
-
         return jsonify({'message': 'Post creato', 'post': post.to_dict(user)})
     except Exception as e:
         db.session.rollback()
@@ -423,16 +372,13 @@ def create_post():
 
 @app.route('/api/posts/<int:post_id>/like', methods=['POST'])
 def toggle_like(post_id):
-    """Metti/Togli like a post (richiede login)"""
     try:
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Login richiesto'}), 401
-
         post = db.session.get(Post, post_id)
         if not post:
             return jsonify({'error': 'Post non trovato'}), 404
-
         existing_like = Like.query.filter_by(user_id=user.id, post_id=post_id).first()
         if existing_like:
             db.session.delete(existing_like)
@@ -440,13 +386,8 @@ def toggle_like(post_id):
         else:
             db.session.add(Like(user_id=user.id, post_id=post_id))
             action = 'added'
-
         db.session.commit()
-        return jsonify({
-            'action': action,
-            'likes_count': post.get_likes_count(),
-            'is_liked': post.is_liked_by(user)
-        })
+        return jsonify({'action': action, 'likes_count': post.get_likes_count(), 'is_liked': post.is_liked_by(user)})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Errore like: {str(e)}'}), 500
@@ -466,7 +407,6 @@ def home():
 # ========================================
 
 with app.app_context():
-    # Idempotente: crea se mancano, e carica dati demo se vuoto
     create_tables()
 
 
