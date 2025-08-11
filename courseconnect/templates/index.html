@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CourseConnect - Social Learning Platform</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <style>
+        :root {
+            /* Gradients */
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #f8ff00 0%, #3ad59f 100%);
+            
+            /* Colors */
+            --bg-primary: #0f0f23;
+            --bg-secondary: #161b33;
+            --bg-card: #1e2139;
+            --bg-card-hover: #252a44;
+            --text-primary: #ffffff;
+            --text-secondary: #8892b0;
+            --text-accent: #64ffda;
+            --border-color: #233554;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            
+            /* Animations */
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(120, 199, 255, 0.3) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+            animation: backgroundMove 20s ease-in-out infinite;
+        }
+
+        @keyframes backgroundMove {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-30px) rotate(0.5deg); }
+            66% { transform: translateY(20px) rotate(-0.5deg); }
+        }
+
+        /* Navbar */
+        .navbar-custom {
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            transition: var(--transition);
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            font-size: 1.8rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar-brand i {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Cards */
+        .glass-card {
+            background: rgba(30, 33, 57, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 
+                0 8px 32px var(--shadow-color),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 
+                0 20px 60px var(--shadow-color),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .glass-card:hover::before {
+            left: 100%;
+        }
+
+        /* Buttons */
+        .btn-gradient {
+            background: var(--primary-gradient);
+            border: none;
+            color: white;
+            border-radius: 50px;
+            padding: 12px 32px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .btn-gradient:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary-custom {
+            background: transparent;
+            border: 2px solid var(--text-accent);
+            color: var(--text-accent);
+            border-radius: 50px;
+            padding: 10px 30px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .btn-secondary-custom:hover {
+            background: var(--text-accent);
+            color: var(--bg-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(100, 255, 218, 0.3);
+        }
+
+        /* Avatar System */
+        .avatar-container {
+            position: relative;
+        }
+
+        .avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: white;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .avatar:hover {
+            transform: scale(1.1) rotate(5deg);
+            border-color: var(--text-accent);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .avatar::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+            transform: rotate(45deg);
+            transition: transform 0.6s;
+        }
+
+        .avatar:hover::before {
+            transform: rotate(45deg) translate(50%, 50%);
+        }
+
+        /* Post Styles */
+        .post-card {
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .post-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .post-author-info h6 {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .post-meta {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .course-badge {
+            background: var(--success-gradient);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .post-content {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Post Actions */
+        .post-actions {
+            display: flex;
+            gap: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: var(--transition);
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+        }
+
+        .action-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: var(--text-accent);
+            transform: translateY(-2px);
+        }
+
+        .action-btn.liked {
+            color: #ff6b9d;
+        }
+
+        .action-btn.liked:hover {
+            color: #ff4081;
+            background: rgba(255, 107, 157, 0.1);
+        }
+
+        .action-btn i {
+            font-size: 1.1rem;
+            transition: var(--transition);
+        }
+
+        .action-btn:hover i {
+            transform: scale(1.2);
+        }
+
+        /* Create Post */
+        .create-post-area {
+            background: transparent;
+            border: 2px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.5rem 2rem;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            resize: none;
+            min-height: 120px;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .create-post-area:focus {
+            outline: none;
+            border-color: var(--text-accent);
+            box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.1);
+            background: rgba(100, 255, 218, 0.05);
+        }
+
+        .create-post-area::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* Welcome Section */
+        .welcome-hero {
+            text-align: center;
+            padding: 4rem 2rem;
+            position: relative;
+        }
+
+        .welcome-hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1.5rem;
+            animation: slideInUp 1s var(--bounce);
+        }
+
+        .welcome-hero p {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: slideInUp 1s var(--bounce) 0.2s both;
+        }
+
+        .welcome-actions {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: slideInUp 1s var(--bounce) 0.4s both;
+        }
+
+        /* Modals */
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 25px 80px var(--shadow-color);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--border-color);
+            padding: 2rem 2rem 1rem;
+        }
+
+        .modal-title {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-accent);
+            box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.1);
+            color: var(--text-primary);
+        }
+
+        .form-control::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .form-label {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Loading States */
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Animations */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(60px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .fade-in-up {
+            animation: slideInUp 0.8s var(--bounce) forwards;
+        }
+
+        .fade-in-scale {
+            animation: fadeInScale 0.6s var(--bounce) forwards;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .welcome-hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .welcome-hero p {
+                font-size: 1.1rem;
+            }
+            
+            .welcome-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn-gradient, .btn-secondary-custom {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .post-card {
+                padding: 1.5rem;
+            }
+            
+            .navbar-brand {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Scroll animations */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.8s var(--bounce);
+        }
+
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Success messages */
+        .toast-custom {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px var(--shadow-color);
+        }
+
+        .toast-custom .toast-body {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.6;
+        }
+
+        .empty-state h5 {
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-custom fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-graduation-cap"></i>
+                CourseConnect
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <div id="navbar-user" style="display: none;">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-secondary">
+                            Ciao, <strong id="user-name" class="text-accent">Utente</strong>!
+                        </span>
+                        <button class="btn btn-secondary-custom btn-sm" onclick="logout()">
+                            <i class="fas fa-sign-out-alt me-1"></i> Logout
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="navbar-guest">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-gradient" onclick="showLoginModal()">
+                            <i class="fas fa-sign-in-alt me-1"></i> Login
+                        </button>
+                        <button class="btn btn-secondary-custom" onclick="showRegisterModal()">
+                            <i class="fas fa-user-plus me-1"></i> Registrati
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-5 pt-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-xl-6">
+                
+                <!-- Welcome Hero -->
+                <div class="glass-card welcome-hero mb-5" id="welcome-section">
+                    <h1>
+                        <i class="fas fa-rocket me-3"></i>
+                        Benvenuto su CourseConnect
+                    </h1>
+                    <p>
+                        La piattaforma social dove i corsisti si incontrano, condividono conoscenze 
+                        e crescono insieme. Unisciti alla community e accelera il tuo apprendimento!
+                    </p>
+                    <div class="welcome-actions">
+                        <button class="btn btn-gradient btn-lg" onclick="showLoginModal()">
+                            <i class="fas fa-rocket me-2"></i> Inizia Subito
+                        </button>
+                        <button class="btn btn-secondary-custom btn-lg" onclick="showRegisterModal()">
+                            <i class="fas fa-users me-2"></i> Unisciti Gratis
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Create Post Section -->
+                <div class="glass-card post-card mb-4" id="create-post-section" style="display: none;">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="avatar-container">
+                            <div class="avatar" id="create-post-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">Cosa stai imparando oggi?</h6>
+                            <small class="text-secondary">Condividi i tuoi progressi con la community</small>
+                        </div>
+                    </div>
+                    
+                    <textarea 
+                        id="post-content" 
+                        class="create-post-area w-100 mb-3" 
+                        placeholder="Racconta i tuoi progressi, condividi una risorsa utile, fai una domanda... La community è qui per aiutarti! 🚀"
+                        maxlength="2000"
+                    ></textarea>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-secondary">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            Suggerimento: usa hashtag come #JavaScript #Design #Marketing
+                        </small>
+                        <button class="btn btn-gradient" onclick="createPost()">
+                            <i class="fas fa-paper-plane me-2"></i> Pubblica
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Posts Feed -->
+                <div id="posts-feed" class="scroll-reveal">
+                    <!-- Posts caricati dinamicamente -->
+                </div>
+
+                <!-- Loading Spinner -->
+                <div class="text-center py-5" id="loading-spinner">
+                    <div class="loading-spinner mx-auto mb-3"></div>
+                    <p class="text-secondary">Caricamento feed...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div class="glass-card empty-state" id="empty-state" style="display: none;">
+                    <i class="fas fa-comments"></i>
+                    <h5>Il feed è vuoto</h5>
+                    <p>Sii il primo a condividere qualcosa di interessante!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-sign-in-alt me-2 text-accent"></i>
+                        Accedi al tuo Account
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="loginForm">
+                        <div class="mb-4">
+                            <label class="form-label">Username o Email</label>
+                            <input type="text" id="loginUsername" class="form-control" required 
+                                   placeholder="Inserisci username o email">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label">Password</label>
+                            <input type="password" id="loginPassword" class="form-control" required
+                                   placeholder="Inserisci la tua password">
+                        </div>
+                        <button type="submit" class="btn btn-gradient w-100 mb-3">
+                            <i class="fas fa-sign-in-alt me-2"></i> Accedi
+                        </button>
+                    </form>
+                    <div class="text-center">
+                        <small class="text-secondary">
+                            Non hai ancora un account? 
+                            <a href="#" class="text-accent" onclick="switchToRegister()">Registrati qui</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal fade" id="registerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus me-2 text-accent"></i>
+                        Crea il tuo Account
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="registerForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nome</label>
+                                <input type="text" id="registerFirstName" class="form-control" required
+                                       placeholder="Il tuo nome">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Cognome</label>
+                                <input type="text" id="registerLastName" class="form-control" required
+                                       placeholder="Il tuo cognome">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" id="registerUsername" class="form-control" required
+                                   placeholder="Scegli un username unico">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="registerEmail" class="form-control" required
+                                   placeholder="La tua email">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" id="registerPassword" class="form-control" required
+                                   placeholder="Crea una password sicura">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label">Corso (opzionale)</label>
+                            <input type="text" id="registerCourse" class="form-control" 
+                                   placeholder="es: Sviluppo Web, Marketing, Design UX">
+                        </div>
+                        <button type="submit" class="btn btn-gradient w-100 mb-3">
+                            <i class="fas fa-rocket me-2"></i> Crea Account
+                        </button>
+                    </form>
+                    <div class="text-center">
+                        <small class="text-secondary">
+                            Hai già un account? 
+                            <a href="#" class="text-accent" onclick="switchToLogin()">Accedi qui</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="successToast" class="toast toast-custom" role="alert">
+            <div class="toast-body">
+                <i class="fas fa-check-circle me-2 text-success"></i>
+                <span id="toastMessage">Operazione completata!</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Main App JavaScript -->
+    <script>
+        // Global variables
+        let currentUser = null;
+        let isLoggedIn = false;
+        let postsData = [];
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupScrollAnimations();
+        });
+
+        async function initializeApp() {
+            try {
+                await checkAuth();
+                await loadPosts();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError('Errore nell\'inizializzazione dell\'app');
+            }
+        }
+
+        // Authentication check
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/me');
+                const data = await response.json();
+                
+                if (data.success && data.user) {
+                    currentUser = data.user;
+                    isLoggedIn = true;
+                    showAuthenticatedView();
+                } else {
+                    showGuestView();
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                showGuestView();
+            }
+        }
+
+        // Show authenticated view
+        function showAuthenticatedView() {
+            document.getElementById('navbar-guest').style.display = 'none';
+            document.getElementById('navbar-user').style.display = 'block';
+            document.getElementById('welcome-section').style.display = 'none';
+            document.getElementById('create-post-section').style.display = 'block';
+            
+            // Update user info
+            const userName = document.getElementById('user-name');
+            const createPostAvatar = document.getElementById('create-post-avatar');
+            
+            if (currentUser) {
+                userName.textContent = currentUser.first_name;
+                createPostAvatar.innerHTML = currentUser.first_name.charAt(0) + currentUser.last_name.charAt(0);
+            }
+        }
+
+        // Show guest view
+        function showGuestView() {
+            document.getElementById('navbar-guest').style.display = 'block';
+            document.getElementById('navbar-user').style.display = 'none';
+            document.getElementById('welcome-section').style.display = 'block';
+            document.getElementById('create-post-section').style.display = 'none';
+        }
+
+        // Modal functions
+        function showLoginModal() {
+            new bootstrap.Modal(document.getElementById('loginModal')).show();
+        }
+
+        function showRegisterModal() {
+            new bootstrap.Modal(document.getElementById('registerModal')).show();
+        }
+
+        function switchToRegister() {
+            bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+            setTimeout(() => showRegisterModal(), 300);
+        }
+
+        function switchToLogin() {
+            bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
+            setTimeout(() => showLoginModal(), 300);
+        }
+
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px;"></div>';
+            submitBtn.disabled = true;
+            
+            try {
+                const formData = {
+                    username_or_email: document.getElementById('loginUsername').value.trim(),
+                    password: document.getElementById('loginPassword').value
+                };
+                
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+                    currentUser = data.user;
+                    isLoggedIn = true;
+                    showAuthenticatedView();
+                    await loadPosts();
+                    showSuccess('Benvenuto su CourseConnect! 🎉');
+                    this.reset();
+                } else {
+                    showError(data.error || 'Errore durante il login');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Errore di connessione. Riprova tra poco.');
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Register form handler
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<div class="loading-spinner" style="width: 20px; height: 20px;"></div>';
+            submitBtn.disabled = true;
+            
+            try {
+                const formData = {
+                    first_name: document.getElementById('registerFirstName').value.trim(),
+                    last_name: document.getElementById('registerLastName').value.trim(),
+                    username: document.getElementById('registerUsername').value.trim(),
+                    email: document.getElementById('registerEmail').value.trim(),
+                    password: document.getElementById('registerPassword').value,
+                    course: document.getElementById('registerCourse').value.trim()
+                };
+                
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
+                    currentUser = data.user;
+                    isLoggedIn = true;
+                    showAuthenticatedView();
+                    await loadPosts();
+                    showSuccess('Account creato! Benvenuto nella community! 🚀');
+                    this.reset();
+                } else {
+                    showError(data.error || 'Errore durante la registrazione');
+                }
+            } catch (error) {
+                console.error('Register error:', error);
+                showError('Errore di connessione. Riprova tra poco.');
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Load posts
+        async function loadPosts() {
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const postsContainer = document.getElementById('posts-feed');
+            const emptyState = document.getElementById('empty-state');
+            
+            loadingSpinner.style.display = 'block';
+            emptyState.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/posts');
+                const data = await response.json();
+                
+                if (data.success && data.posts) {
+                    postsData = data.posts;
+                    renderPosts(data.posts);
+                } else {
+                    console.error('Error loading posts:', data.error);
+                    postsContainer.innerHTML = '';
+                    emptyState.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Load posts error:', error);
+                postsContainer.innerHTML = '';
+                emptyState.style.display = 'block';
+            } finally {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        // Render posts
+        function renderPosts(posts) {
+            const feedContainer = document.getElementById('posts-feed');
+            feedContainer.innerHTML = '';
+
+            if (!posts || posts.length === 0) {
+                document.getElementById('empty-state').style.display = 'block';
+                return;
+            }
+
+            posts.forEach((post, index) => {
+                const postElement = createPostElement(post);
+                postElement.style.animationDelay = `${index * 0.1}s`;
+                feedContainer.appendChild(postElement);
+            });
+
+            // Trigger scroll animations
+            setTimeout(setupScrollAnimations, 100);
+        }
+
+        // Create post element
+        function createPostElement(post) {
+            const postDiv = document.createElement('div');
+            postDiv.className = 'glass-card post-card scroll-reveal';
+            
+            const authorInitials = post.author ? 
+                (post.author.first_name?.charAt(0) || '') + (post.author.last_name?.charAt(0) || '') : 
+                'U';
+            
+            const courseBadge = post.author?.course ? 
+                `<span class="course-badge">${post.author.course}</span>` : '';
+            
+            postDiv.innerHTML = `
+                <div class="post-header">
+                    <div class="avatar">
+                        ${authorInitials}
+                    </div>
+                    <div class="post-author-info flex-grow-1">
+                        <h6>${post.author?.first_name || 'Utente'} ${post.author?.last_name || ''}</h6>
+                        <div class="post-meta">
+                            <span>@${post.author?.username || 'utente'}</span>
+                            ${courseBadge}
+                            <span>•</span>
+                            <span>${formatDate(post.created_at)}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="post-content">
+                    ${post.content || ''}
+                </div>
+                
+                <div class="post-actions">
+                    <button class="action-btn ${post.is_liked ? 'liked' : ''}" onclick="toggleLike(${post.id}, this)">
+                        <i class="fas fa-heart"></i>
+                        <span>${post.likes_count || 0}</span>
+                    </button>
+                    <button class="action-btn">
+                        <i class="fas fa-comment"></i>
+                        <span>${post.comments_count || 0}</span>
+                    </button>
+                    <button class="action-btn">
+                        <i class="fas fa-share"></i>
+                        <span>Condividi</span>
+                    </button>
+                </div>
+            `;
+            
+            return postDiv;
+        }
+
+        // Create new post
+        async function createPost() {
+            if (!isLoggedIn) {
+                showLoginModal();
+                return;
+            }
+
+            const contentTextarea = document.getElementById('post-content');
+            const content = contentTextarea.value.trim();
+            
+            if (!content) {
+                showError('Scrivi qualcosa prima di pubblicare!');
+                contentTextarea.focus();
+                return;
+            }
+
+            if (content.length > 2000) {
+                showError('Post troppo lungo! Massimo 2000 caratteri.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    contentTextarea.value = '';
+                    await loadPosts();
+                    showSuccess('Post pubblicato con successo! 🎉');
+                } else {
+                    showError(data.error || 'Errore nella pubblicazione del post');
+                }
+            } catch (error) {
+                console.error('Create post error:', error);
+                showError('Errore di connessione. Riprova tra poco.');
+            }
+        }
+
+        // Toggle like
+        async function toggleLike(postId, button) {
+            if (!isLoggedIn) {
+                showLoginModal();
+                return;
+            }
+
+            const originalState = button.classList.contains('liked');
+            const countSpan = button.querySelector('span');
+            const currentCount = parseInt(countSpan.textContent) || 0;
+
+            // Optimistic UI update
+            if (originalState) {
+                button.classList.remove('liked');
+                countSpan.textContent = Math.max(0, currentCount - 1);
+            } else {
+                button.classList.add('liked');
+                countSpan.textContent = currentCount + 1;
+            }
+
+            try {
+                const response = await fetch(`/api/posts/${postId}/like`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update with server response
+                    countSpan.textContent = data.likes_count || 0;
+                    if (data.action === 'added') {
+                        button.classList.add('liked');
+                    } else {
+                        button.classList.remove('liked');
+                    }
+                } else {
+                    // Revert optimistic update
+                    if (originalState) {
+                        button.classList.add('liked');
+                        countSpan.textContent = currentCount;
+                    } else {
+                        button.classList.remove('liked');
+                        countSpan.textContent = currentCount;
+                    }
+                    showError(data.error || 'Errore nel like');
+                }
+            } catch (error) {
+                // Revert optimistic update
+                if (originalState) {
+                    button.classList.add('liked');
+                    countSpan.textContent = currentCount;
+                } else {
+                    button.classList.remove('liked');
+                    countSpan.textContent = currentCount;
+                }
+                console.error('Toggle like error:', error);
+                showError('Errore di connessione');
+            }
+        }
+
+        // Logout
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                currentUser = null;
+                isLoggedIn = false;
+                showGuestView();
+                await loadPosts();
+                showSuccess('Logout effettuato. A presto! 👋');
+            } catch (error) {
+                console.error('Logout error:', error);
+                showError('Errore durante il logout');
+            }
+        }
+
+        // Utility functions
+        function formatDate(dateString) {
+            if (!dateString) return 'Ora';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'ora';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}min`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+            if (diff < 604800000) return `${Math.floor(diff / 86400000)}g`;
+            return date.toLocaleDateString('it-IT');
+        }
+
+        function showSuccess(message) {
+            const toast = document.getElementById('successToast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.innerHTML = `<i class="fas fa-check-circle me-2 text-success"></i>${message}`;
+            new bootstrap.Toast(toast).show();
+        }
+
+        function showError(message) {
+            const toast = document.getElementById('successToast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.innerHTML = `<i class="fas fa-exclamation-circle me-2 text-danger"></i>${message}`;
+            new bootstrap.Toast(toast).show();
+        }
+
+        // Scroll animations
+        function setupScrollAnimations() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            document.querySelectorAll('.scroll-reveal').forEach(el => {
+                observer.observe(el);
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.target.id === 'post-content' && e.key === 'Enter' && e.ctrlKey) {
+                createPost();
+            }
+        });
+
+        // Character counter for post textarea
+        document.getElementById('post-content').addEventListener('input', function() {
+            const maxLength = 2000;
+            const currentLength = this.value.length;
+            const remaining = maxLength - currentLength;
+            
+            // You could add a character counter here if needed
+        });
+    </script>
+</body>
+</html>
