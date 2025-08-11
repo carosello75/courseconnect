@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti
-# app.py - Versione Production-safe (senza chat)
+# app.py - Versione Production-safe (Render friendly)
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session
@@ -16,11 +16,15 @@ import os
 
 app = Flask(__name__)
 
-# Secret key: override in produzione con env var
+# Secret key (in produzione sovrascrivi con env var)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'courseconnect-secret-key-2024')
 
-# Normalizza DATABASE_URL (Render Postgres spesso usa "postgres://")
-db_url = os.environ.get('DATABASE_URL', 'sqlite:///courseconnect.db')
+# --- DATABASE_URL ---
+# Default: SQLite in path ASSOLUTO nella working dir (evita "readonly database" su Render)
+default_sqlite_path = os.path.join(os.getcwd(), 'courseconnect.db')
+db_url = os.environ.get('DATABASE_URL', f'sqlite:///{default_sqlite_path}')
+
+# Render Postgres spesso usa "postgres://", SQLAlchemy vuole "postgresql+psycopg2://"
 if db_url.startswith('postgres://'):
     db_url = db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
 
@@ -31,9 +35,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 if db_url.startswith('sqlite'):
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"connect_args": {"check_same_thread": False}}
 
-# Cookie session un po' più sicuri
+# Cookie di sessione più sicuri (su Render è HTTPS)
 app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
-app.config.setdefault('SESSION_COOKIE_SECURE', True)  # True su HTTPS (Render)
+app.config.setdefault('SESSION_COOKIE_SECURE', True)
 
 db = SQLAlchemy(app)
 
@@ -143,7 +147,6 @@ class Like(db.Model):
 
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
 
-
 # ========================================
 # UTILITY
 # ========================================
@@ -154,7 +157,6 @@ def get_current_user():
     if not uid:
         return None
     return db.session.get(User, uid)
-
 
 def _seed_data():
     """Popola dati demo in modo idempotente."""
@@ -202,6 +204,7 @@ def _seed_data():
     if created_something:
         db.session.commit()
 
+    # Post demo (solo se non ce ne sono)
     if Post.query.count() == 0:
         admin = User.query.filter_by(username='admin').first()
         marco = User.query.filter_by(username='marco_dev').first()
@@ -220,12 +223,10 @@ def _seed_data():
                 db.session.add(Post(**p))
         db.session.commit()
 
-
 def create_tables():
     """Crea tabelle database e fa seed idempotente."""
     db.create_all()
     _seed_data()
-
 
 # ========================================
 # API ROUTES
@@ -233,6 +234,7 @@ def create_tables():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
+    """Health check per monitoring"""
     try:
         db.session.execute(text('SELECT 1'))
         return jsonify({
@@ -245,9 +247,9 @@ def health_check():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e), 'timestamp': datetime.utcnow().isoformat()}), 500
 
-
 @app.route('/api/init-db', methods=['GET'])
 def init_database():
+    """Inizializza/ri-seeda database (idempotente)"""
     try:
         create_tables()
         return jsonify({
@@ -261,9 +263,9 @@ def init_database():
         db.session.rollback()
         return jsonify({'status': 'error', 'error': str(e), 'timestamp': datetime.utcnow().isoformat()}), 500
 
-
 @app.route('/api/register', methods=['POST'])
 def register():
+    """Registrazione nuovo utente"""
     try:
         data = request.get_json(silent=True) or {}
         required = ['username', 'email', 'nome', 'cognome', 'corso', 'password']
@@ -271,6 +273,7 @@ def register():
             return jsonify({'error': 'Tutti i campi sono obbligatori'}), 400
         if len(data['password']) < 6:
             return jsonify({'error': 'La password deve avere almeno 6 caratteri'}), 400
+
         if User.query.filter_by(username=data['username']).first():
             return jsonify({'error': 'Username già in uso'}), 400
         if User.query.filter_by(email=data['email']).first():
@@ -287,52 +290,55 @@ def register():
         user.set_password(data['password'])
         db.session.add(user)
         db.session.commit()
+
         session['user_id'] = user.id
         return jsonify({'message': 'Registrazione completata', 'user': user.to_dict()})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Errore registrazione: {str(e)}'}), 500
 
-
 @app.route('/api/login', methods=['POST'])
 def login():
+    """Login utente"""
     try:
         data = request.get_json(silent=True) or {}
         if not data.get('username') or not data.get('password'):
             return jsonify({'error': 'Username e password richiesti'}), 400
+
         user = User.query.filter_by(username=data['username']).first()
         if not user or not user.check_password(data['password']):
             return jsonify({'error': 'Credenziali non valide'}), 401
+
         session['user_id'] = user.id
         return jsonify({'message': 'Login effettuato', 'user': user.to_dict()})
     except Exception as e:
         return jsonify({'error': f'Errore login: {str(e)}'}), 500
 
-
 @app.route('/api/logout', methods=['POST'])
 def logout():
+    """Logout utente"""
     session.pop('user_id', None)
     return jsonify({'message': 'Logout effettuato'})
 
-
 @app.route('/api/me', methods=['GET'])
 def get_current_user_info():
+    """Informazioni utente corrente"""
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Non autenticato'}), 401
     return jsonify({'user': user.to_dict()})
 
-
 def _paginate_posts(page, per_page):
+    """Compat con Flask-SQLAlchemy 3.x"""
     try:
         return Post.query.order_by(Post.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     except AttributeError:
         stmt = db.select(Post).order_by(Post.created_at.desc())
         return db.paginate(stmt, page=page, per_page=per_page, error_out=False)
 
-
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
+    """Ottieni feed post (pubblico)"""
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
@@ -348,37 +354,42 @@ def get_posts():
     except Exception as e:
         return jsonify({'error': f'Errore caricamento post: {str(e)}'}), 500
 
-
 @app.route('/api/posts', methods=['POST'])
 def create_post():
+    """Crea nuovo post (richiede login)"""
     try:
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Login richiesto'}), 401
+
         data = request.get_json(silent=True) or {}
         content = (data.get('content') or '').strip()
         if not content:
             return jsonify({'error': 'Contenuto post richiesto'}), 400
         if len(content) > 2000:
             return jsonify({'error': 'Post troppo lungo (max 2000 caratteri)'}), 400
+
         post = Post(content=content, user_id=user.id)
         db.session.add(post)
         db.session.commit()
+
         return jsonify({'message': 'Post creato', 'post': post.to_dict(user)})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Errore creazione post: {str(e)}'}), 500
 
-
 @app.route('/api/posts/<int:post_id>/like', methods=['POST'])
 def toggle_like(post_id):
+    """Metti/Togli like a post (richiede login)"""
     try:
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Login richiesto'}), 401
+
         post = db.session.get(Post, post_id)
         if not post:
             return jsonify({'error': 'Post non trovato'}), 404
+
         existing_like = Like.query.filter_by(user_id=user.id, post_id=post_id).first()
         if existing_like:
             db.session.delete(existing_like)
@@ -386,12 +397,16 @@ def toggle_like(post_id):
         else:
             db.session.add(Like(user_id=user.id, post_id=post_id))
             action = 'added'
+
         db.session.commit()
-        return jsonify({'action': action, 'likes_count': post.get_likes_count(), 'is_liked': post.is_liked_by(user)})
+        return jsonify({
+            'action': action,
+            'likes_count': post.get_likes_count(),
+            'is_liked': post.is_liked_by(user)
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Errore like: {str(e)}'}), 500
-
 
 # ========================================
 # WEB ROUTES
@@ -399,8 +414,8 @@ def toggle_like(post_id):
 
 @app.route('/')
 def home():
+    """Homepage"""
     return render_template('index.html')
-
 
 # ========================================
 # STARTUP: crea tabelle anche con gunicorn
@@ -408,7 +423,6 @@ def home():
 
 with app.app_context():
     create_tables()
-
 
 # ========================================
 # DEV ENTRYPOINT (esecuzione locale)
