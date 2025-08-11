@@ -184,11 +184,94 @@
             margin-right: auto;
         }
 
-        /* Social Section */
-        .social-section {
-            padding: 2rem 0;
+        /* Forms */
+        .form-control, .form-select {
+            background: rgba(45, 45, 45, 0.7);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
         }
 
+        .form-control:focus, .form-select:focus {
+            background: rgba(45, 45, 45, 0.9);
+            border-color: var(--primary-color);
+            color: var(--text-light);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-select option {
+            background: var(--card-bg);
+            color: var(--text-light);
+        }
+
+        /* Validation Styles */
+        .is-invalid {
+            border-color: var(--danger-color) !important;
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 107, 0.25) !important;
+        }
+
+        .is-valid {
+            border-color: var(--success-color) !important;
+            box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25) !important;
+        }
+
+        .invalid-feedback {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .valid-feedback {
+            color: var(--success-color);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Modals */
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-footer {
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Alerts */
+        .alert {
+            border-radius: 10px;
+            border: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 400px;
+        }
+
+        .alert-success {
+            background: linear-gradient(45deg, rgba(79, 172, 254, 0.9), rgba(79, 172, 254, 0.9));
+            color: white;
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+
+        .alert-danger {
+            background: linear-gradient(45deg, rgba(255, 107, 107, 0.9), rgba(255, 107, 107, 0.9));
+            color: white;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
+        /* Posts */
         .post-card {
             margin-bottom: 1.5rem;
             padding: 1.5rem;
@@ -237,64 +320,6 @@
 
         .action-btn.liked {
             color: var(--danger-color);
-        }
-
-        /* Forms */
-        .form-control, .form-select {
-            background: rgba(45, 45, 45, 0.7);
-            border: 1px solid var(--border-color);
-            color: var(--text-light);
-            border-radius: 10px;
-            padding: 0.75rem 1rem;
-        }
-
-        .form-control:focus, .form-select:focus {
-            background: rgba(45, 45, 45, 0.9);
-            border-color: var(--primary-color);
-            color: var(--text-light);
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
-
-        .form-control::placeholder {
-            color: var(--text-muted);
-        }
-
-        .form-select option {
-            background: var(--card-bg);
-            color: var(--text-light);
-        }
-
-        /* Modals */
-        .modal-content {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-        }
-
-        .modal-header {
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .modal-footer {
-            border-top: 1px solid var(--border-color);
-        }
-
-        /* Alerts */
-        .alert {
-            border-radius: 10px;
-            border: none;
-        }
-
-        .alert-success {
-            background: linear-gradient(45deg, rgba(79, 172, 254, 0.1), rgba(79, 172, 254, 0.1));
-            color: var(--success-color);
-            border: 1px solid rgba(79, 172, 254, 0.3);
-        }
-
-        .alert-danger {
-            background: linear-gradient(45deg, rgba(255, 107, 107, 0.1), rgba(255, 107, 107, 0.1));
-            color: var(--danger-color);
-            border: 1px solid rgba(255, 107, 107, 0.3);
         }
 
         /* Loading */
@@ -580,37 +605,41 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="register-form">
+                    <form id="register-form" novalidate>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="register-nome" class="form-label">Nome</label>
+                                    <label for="register-nome" class="form-label">Nome *</label>
                                     <input type="text" class="form-control" id="register-nome" required>
+                                    <div class="invalid-feedback">Il nome è obbligatorio</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="register-cognome" class="form-label">Cognome</label>
+                                    <label for="register-cognome" class="form-label">Cognome *</label>
                                     <input type="text" class="form-control" id="register-cognome" required>
+                                    <div class="invalid-feedback">Il cognome è obbligatorio</div>
                                 </div>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="register-username" class="form-label">Username</label>
+                                    <label for="register-username" class="form-label">Username *</label>
                                     <input type="text" class="form-control" id="register-username" required>
+                                    <div class="invalid-feedback">L'username è obbligatorio</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="register-email" class="form-label">Email</label>
+                                    <label for="register-email" class="form-label">Email *</label>
                                     <input type="email" class="form-control" id="register-email" required>
+                                    <div class="invalid-feedback">Inserisci un'email valida</div>
                                 </div>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="register-corso" class="form-label">Corso di Studio</label>
+                            <label for="register-corso" class="form-label">Corso di Studio *</label>
                             <select class="form-select" id="register-corso" required>
                                 <option value="">Seleziona il tuo corso...</option>
                                 <option value="Sviluppo Web Full-Stack">Sviluppo Web Full-Stack</option>
@@ -624,11 +653,13 @@
                                 <option value="Web Design">Web Design</option>
                                 <option value="Altro">Altro</option>
                             </select>
+                            <div class="invalid-feedback">Seleziona un corso dal menu</div>
                         </div>
                         <div class="mb-3">
-                            <label for="register-password" class="form-label">Password</label>
+                            <label for="register-password" class="form-label">Password *</label>
                             <input type="password" class="form-control" id="register-password" required minlength="6">
                             <div class="form-text">Minimo 6 caratteri</div>
+                            <div class="invalid-feedback">La password deve essere di almeno 6 caratteri</div>
                         </div>
                         <div class="mb-3">
                             <label for="register-bio" class="form-label">Bio (Opzionale)</label>
@@ -639,7 +670,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                    <button type="button" class="btn btn-primary" onclick="register()">
+                    <button type="button" class="btn btn-primary" onclick="register()" id="register-btn">
                         <i class="fas fa-user-plus me-2"></i>Registrati
                     </button>
                 </div>
@@ -680,6 +711,20 @@
                     }
                 });
             }
+
+            // Form validation listeners
+            const formFields = [
+                'register-nome', 'register-cognome', 'register-username', 
+                'register-email', 'register-corso', 'register-password'
+            ];
+
+            formFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', () => validateField(field));
+                    field.addEventListener('blur', () => validateField(field));
+                }
+            });
         }
 
         // Authentication Functions
@@ -701,7 +746,7 @@
         }
 
         async function login() {
-            const username = document.getElementById('login-username').value;
+            const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
 
             if (!username || !password) {
@@ -734,7 +779,65 @@
             }
         }
 
+        function validateField(field) {
+            const value = field.value.trim();
+            let isValid = true;
+
+            // Remove existing validation classes
+            field.classList.remove('is-valid', 'is-invalid');
+
+            // Validate based on field type
+            switch (field.id) {
+                case 'register-nome':
+                case 'register-cognome':
+                case 'register-username':
+                    isValid = value.length >= 2;
+                    break;
+                case 'register-email':
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    isValid = emailRegex.test(value);
+                    break;
+                case 'register-corso':
+                    isValid = value !== '';
+                    break;
+                case 'register-password':
+                    isValid = value.length >= 6;
+                    break;
+            }
+
+            // Apply validation class
+            field.classList.add(isValid ? 'is-valid' : 'is-invalid');
+            return isValid;
+        }
+
+        function validateForm() {
+            const fields = [
+                'register-nome', 'register-cognome', 'register-username',
+                'register-email', 'register-corso', 'register-password'
+            ];
+
+            let isFormValid = true;
+
+            fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (!validateField(field)) {
+                    isFormValid = false;
+                }
+            });
+
+            return isFormValid;
+        }
+
         async function register() {
+            console.log('🚀 Inizio registrazione...');
+
+            // Validate form first
+            if (!validateForm()) {
+                showAlert('Correggi gli errori nel form prima di continuare', 'danger');
+                return;
+            }
+
+            // Collect form data
             const formData = {
                 nome: document.getElementById('register-nome').value.trim(),
                 cognome: document.getElementById('register-cognome').value.trim(),
@@ -745,20 +848,37 @@
                 bio: document.getElementById('register-bio').value.trim()
             };
 
-            // Validation
+            // Debug: log all data
+            console.log('📊 DATI REGISTRAZIONE:');
+            console.log('Nome:', `"${formData.nome}"`, '(length:', formData.nome.length, ')');
+            console.log('Cognome:', `"${formData.cognome}"`, '(length:', formData.cognome.length, ')');
+            console.log('Username:', `"${formData.username}"`, '(length:', formData.username.length, ')');
+            console.log('Email:', `"${formData.email}"`, '(length:', formData.email.length, ')');
+            console.log('Corso:', `"${formData.corso}"`, '(length:', formData.corso.length, ')');
+            console.log('Password:', `"${formData.password}"`, '(length:', formData.password.length, ')');
+            console.log('Bio:', `"${formData.bio}"`, '(length:', formData.bio.length, ')');
+
+            // Final validation
             if (!formData.nome || !formData.cognome || !formData.username || 
                 !formData.email || !formData.corso || !formData.password) {
+                console.error('❌ Validazione fallita! Campi vuoti trovati.');
                 showAlert('Tutti i campi obbligatori devono essere compilati', 'danger');
                 return;
             }
 
             if (formData.password.length < 6) {
+                console.error('❌ Password troppo corta!');
                 showAlert('La password deve essere di almeno 6 caratteri', 'danger');
                 return;
             }
 
-            // Debug: mostra i dati che stiamo inviando
-            console.log('Dati registrazione:', formData);
+            console.log('✅ Validazione OK, invio dati al server...');
+
+            // Disable button during request
+            const registerBtn = document.getElementById('register-btn');
+            const originalText = registerBtn.innerHTML;
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Registrazione...';
 
             try {
                 const response = await fetch('/api/register', {
@@ -769,20 +889,28 @@
                     body: JSON.stringify(formData)
                 });
 
+                console.log('📡 Risposta server:', response.status, response.statusText);
+
                 const data = await response.json();
+                console.log('📦 Dati risposta:', data);
 
                 if (response.ok) {
                     currentUser = data.user;
-                    showAlert('Registrazione completata! Benvenuto in CourseConnect!', 'success');
+                    showAlert('🎉 Registrazione completata! Benvenuto in CourseConnect!', 'success');
                     closeModal('registerModal');
                     showUserSection();
                     loadPosts();
                 } else {
+                    console.error('❌ Errore server:', data.error);
                     showAlert(data.error || 'Errore durante la registrazione', 'danger');
                 }
             } catch (error) {
-                console.error('Errore registrazione:', error);
-                showAlert('Errore di connessione', 'danger');
+                console.error('💥 Errore fetch:', error);
+                showAlert('Errore di connessione. Riprova.', 'danger');
+            } finally {
+                // Re-enable button
+                registerBtn.disabled = false;
+                registerBtn.innerHTML = originalText;
             }
         }
 
@@ -971,23 +1099,21 @@
 
         function showAlert(message, type) {
             // Remove existing alerts
-            const existingAlert = document.querySelector('.alert');
-            if (existingAlert) {
-                existingAlert.remove();
-            }
+            const existingAlerts = document.querySelectorAll('.alert');
+            existingAlerts.forEach(alert => alert.remove());
 
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
             alertDiv.innerHTML = `
-                ${message}
+                <strong>${type === 'success' ? '✅' : '❌'}</strong> ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
 
-            document.body.insertBefore(alertDiv, document.body.firstChild);
+            document.body.appendChild(alertDiv);
 
             // Auto dismiss after 5 seconds
             setTimeout(() => {
-                if (alertDiv) {
+                if (alertDiv && alertDiv.parentNode) {
                     alertDiv.remove();
                 }
             }, 5000);
@@ -1000,7 +1126,7 @@
             }
         }
 
-        // Add some scroll animations
+        // Add scroll animations
         window.addEventListener('scroll', function() {
             const elements = document.querySelectorAll('.glass-card');
             elements.forEach(element => {
