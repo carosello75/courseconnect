@@ -7,5 +7,5 @@ python-socketio==5.9.0
 eventlet==0.33.3
 Pillow==10.1.0
 gunicorn==21.2.0
-# Se passi a Postgres, aggiungi anche:
+# Se hai un DATABASE_URL di Postgres in Render, togli il # qui sotto:
 # psycopg2-binary==2.9.9
