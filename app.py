@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti
-# app.py - Production-safe (Render friendly) + fix input JSON/form & /api/me
+# app.py - Production-safe (Render friendly) + robust register/login
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session
@@ -230,18 +230,38 @@ def create_tables():
 
 def _payload():
     """
-    Estrae i dati sia da JSON che da form-data/x-www-form-urlencoded.
-    Evita i 400 quando il frontend non manda application/json.
+    Estrae i dati sia da JSON che da form-data/x-www-form-urlencoded
+    e normalizza chiavi alternative dal frontend.
     """
     if request.is_json:
-        return request.get_json(silent=True) or {}
-    if request.form:
-        return request.form.to_dict()
-    # Fallback: prova a parse raw body
-    try:
-        return json.loads((request.data or b'').decode('utf-8') or '{}')
-    except Exception:
-        return {}
+        data = request.get_json(silent=True) or {}
+    elif request.form:
+        data = request.form.to_dict()
+    else:
+        try:
+            data = json.loads((request.data or b'').decode('utf-8') or '{}')
+        except Exception:
+            data = {}
+
+    # Alias comuni (inglese -> italiano)
+    alias = {
+        'firstName': 'nome',
+        'lastName': 'cognome',
+        'course': 'corso',
+        'bioText': 'bio',
+        'password1': 'password',
+        'password_confirm': 'password',
+    }
+    for k, v in list(data.items()):
+        if k in alias and alias[k] not in data:
+            data[alias[k]] = v
+
+    # Trim stringhe
+    for k, v in list(data.items()):
+        if isinstance(v, str):
+            data[k] = v.strip()
+
+    return data
 
 # ========================================
 # API ROUTES
@@ -280,30 +300,28 @@ def init_database():
 
 @app.route('/api/register', methods=['POST'])
 def register():
-    """Registrazione nuovo utente (accetta JSON o form)"""
+    """Registrazione nuovo utente (accetta JSON o form, con alias)"""
     try:
         data = _payload()
         required = ['username', 'email', 'nome', 'cognome', 'corso', 'password']
-        if not all((data.get(k) or '').strip() for k in required):
-            return jsonify({'error': 'Tutti i campi sono obbligatori'}), 400
-        if len((data.get('password') or '')) < 6:
+        missing = [k for k in required if not (data.get(k) or '').strip()]
+        if missing:
+            return jsonify({'error': 'Tutti i campi sono obbligatori', 'missing_fields': missing}), 400
+        if len(data['password']) < 6:
             return jsonify({'error': 'La password deve avere almeno 6 caratteri'}), 400
 
-        uname = data['username'].strip()
-        email = data['email'].strip()
-
-        if User.query.filter_by(username=uname).first():
+        if User.query.filter_by(username=data['username']).first():
             return jsonify({'error': 'Username già in uso'}), 400
-        if User.query.filter_by(email=email).first():
+        if User.query.filter_by(email=data['email']).first():
             return jsonify({'error': 'Email già registrata'}), 400
 
         user = User(
-            username=uname,
-            email=email,
-            nome=data['nome'].strip(),
-            cognome=data['cognome'].strip(),
-            corso=data['corso'].strip(),
-            bio=(data.get('bio') or '').strip()
+            username=data['username'],
+            email=data['email'],
+            nome=data['nome'],
+            cognome=data['cognome'],
+            corso=data['corso'],
+            bio=(data.get('bio') or '')
         )
         user.set_password(data['password'])
         db.session.add(user)
@@ -320,7 +338,7 @@ def login():
     """Login utente (accetta JSON o form)"""
     try:
         data = _payload()
-        username = (data.get('username') or '').strip()
+        username = (data.get('username') or '')
         password = (data.get('password') or '')
         if not username or not password:
             return jsonify({'error': 'Username e password richiesti'}), 400
@@ -344,7 +362,7 @@ def logout():
 def get_current_user_info():
     """
     Informazioni utente corrente.
-    Per evitare 401 in console, se non autenticato rispondiamo 200 con authenticated:false.
+    Evitiamo 401 in console: se non autenticato, 200 con authenticated:false.
     """
     user = get_current_user()
     if not user:
