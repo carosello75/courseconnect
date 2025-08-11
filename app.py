@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti
-# app.py - Versione Production-safe (Render friendly)
+# app.py - Production-safe (Render friendly) + fix input JSON/form & /api/me
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session
@@ -8,7 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-import os
+import os, json
 
 # ========================================
 # FLASK APP & CONFIG
@@ -228,6 +228,21 @@ def create_tables():
     db.create_all()
     _seed_data()
 
+def _payload():
+    """
+    Estrae i dati sia da JSON che da form-data/x-www-form-urlencoded.
+    Evita i 400 quando il frontend non manda application/json.
+    """
+    if request.is_json:
+        return request.get_json(silent=True) or {}
+    if request.form:
+        return request.form.to_dict()
+    # Fallback: prova a parse raw body
+    try:
+        return json.loads((request.data or b'').decode('utf-8') or '{}')
+    except Exception:
+        return {}
+
 # ========================================
 # API ROUTES
 # ========================================
@@ -265,23 +280,26 @@ def init_database():
 
 @app.route('/api/register', methods=['POST'])
 def register():
-    """Registrazione nuovo utente"""
+    """Registrazione nuovo utente (accetta JSON o form)"""
     try:
-        data = request.get_json(silent=True) or {}
+        data = _payload()
         required = ['username', 'email', 'nome', 'cognome', 'corso', 'password']
-        if not all(data.get(k) for k in required):
+        if not all((data.get(k) or '').strip() for k in required):
             return jsonify({'error': 'Tutti i campi sono obbligatori'}), 400
-        if len(data['password']) < 6:
+        if len((data.get('password') or '')) < 6:
             return jsonify({'error': 'La password deve avere almeno 6 caratteri'}), 400
 
-        if User.query.filter_by(username=data['username']).first():
+        uname = data['username'].strip()
+        email = data['email'].strip()
+
+        if User.query.filter_by(username=uname).first():
             return jsonify({'error': 'Username già in uso'}), 400
-        if User.query.filter_by(email=data['email']).first():
+        if User.query.filter_by(email=email).first():
             return jsonify({'error': 'Email già registrata'}), 400
 
         user = User(
-            username=data['username'].strip(),
-            email=data['email'].strip(),
+            username=uname,
+            email=email,
             nome=data['nome'].strip(),
             cognome=data['cognome'].strip(),
             corso=data['corso'].strip(),
@@ -299,14 +317,16 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    """Login utente"""
+    """Login utente (accetta JSON o form)"""
     try:
-        data = request.get_json(silent=True) or {}
-        if not data.get('username') or not data.get('password'):
+        data = _payload()
+        username = (data.get('username') or '').strip()
+        password = (data.get('password') or '')
+        if not username or not password:
             return jsonify({'error': 'Username e password richiesti'}), 400
 
-        user = User.query.filter_by(username=data['username']).first()
-        if not user or not user.check_password(data['password']):
+        user = User.query.filter_by(username=username).first()
+        if not user or not user.check_password(password):
             return jsonify({'error': 'Credenziali non valide'}), 401
 
         session['user_id'] = user.id
@@ -322,11 +342,14 @@ def logout():
 
 @app.route('/api/me', methods=['GET'])
 def get_current_user_info():
-    """Informazioni utente corrente"""
+    """
+    Informazioni utente corrente.
+    Per evitare 401 in console, se non autenticato rispondiamo 200 con authenticated:false.
+    """
     user = get_current_user()
     if not user:
-        return jsonify({'error': 'Non autenticato'}), 401
-    return jsonify({'user': user.to_dict()})
+        return jsonify({'authenticated': False, 'user': None})
+    return jsonify({'authenticated': True, 'user': user.to_dict()})
 
 def _paginate_posts(page, per_page):
     """Compat con Flask-SQLAlchemy 3.x"""
@@ -362,7 +385,7 @@ def create_post():
         if not user:
             return jsonify({'error': 'Login richiesto'}), 401
 
-        data = request.get_json(silent=True) or {}
+        data = _payload()
         content = (data.get('content') or '').strip()
         if not content:
             return jsonify({'error': 'Contenuto post richiesto'}), 400
