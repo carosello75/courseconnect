@@ -648,9 +648,11 @@ Buon networking e buono studio! 🚀
         else:
             print("✅ Database già inizializzato!")
 
-if __name__ == '__main__':
+# Crea tabelle all'avvio - FIX IMMEDIATO
+with app.app_context():
     create_tables()
-    
+
+if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
     
