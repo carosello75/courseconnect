@@ -61,6 +61,8 @@
     .action-btn{background:none;border:none;color:var(--text-muted);padding:.5rem 1rem;border-radius:8px;transition:all .3s ease;cursor:pointer}
     .action-btn:hover{color:var(--primary-color);background:rgba(102,126,234,.1)}
     .action-btn.liked{color:var(--danger-color)}
+    .action-btn.text-danger{color:var(--danger-color)!important}
+    .action-btn.text-danger:hover{color:#fff!important;background:var(--danger-color)!important}
     .loading{display:none;text-align:center;padding:2rem}
     .spinner{width:40px;height:40px;border:4px solid rgba(102,126,234,.3);border-top:4px solid var(--primary-color);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
     @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
@@ -668,7 +670,7 @@
     // Posts
     async function loadPosts(){ const container=document.getElementById('posts-container'); container.innerHTML='<div class="loading"><div class="spinner"></div><p>Caricamento post...</p></div>'; try{ const res=await fetch('/api/posts'); const data=await res.json(); if(res.ok){ posts=data.posts; renderPosts(); } else { container.innerHTML=`<div class="alert alert-danger">Errore: ${data.error}</div>`; } } catch(e){ container.innerHTML='<div class="alert alert-danger">Errore di connessione</div>'; } }
 
-    function renderPosts(){ const container=document.getElementById('posts-container'); if(posts.length===0){ container.innerHTML = `<div class="glass-card p-4 text-center"><i class="fas fa-comments fa-3x mb-3" style="color:var(--text-muted)"></i><h5>Inizia la Conversazione!</h5><p class="text-muted">Condividi il tuo primo post e ispira la community!</p></div>`; return; } container.innerHTML = posts.map(post=>{ const html=renderMarkdown(post.content); return `
+    function renderPosts(){ const container=document.getElementById('posts-container'); if(posts.length===0){ container.innerHTML = `<div class="glass-card p-4 text-center"><i class="fas fa-comments fa-3x mb-3" style="color:var(--text-muted)"></i><h5>Inizia la Conversazione!</h5><p class="text-muted">Condividi il tuo primo post e ispira la community!</p></div>`; return; } container.innerHTML = posts.map(post=>{ const html=renderMarkdown(post.content); const isAuthor = currentUser && (post.author.id === currentUser.id || currentUser.is_admin); const deleteBtn = isAuthor ? `<button class="action-btn text-danger" onclick="deletePost(${post.id})" title="Elimina post"><i class="fas fa-trash me-1"></i>Elimina</button>` : ''; return `
       <div class="post-card glass-card slide-up" id="post-${post.id}">
         <div class="d-flex align-items-start">
           <div class="user-avatar" style="background:${post.author.avatar_color}">${post.author.initials}</div>
@@ -681,6 +683,7 @@
             <div class="post-actions">
               <button class="action-btn ${post.is_liked ? 'liked' : ''}" onclick="toggleLike(${post.id})"><i class="fas fa-heart me-1"></i><span id="likes-${post.id}">${post.likes_count}</span></button>
               <button class="action-btn" onclick="sharePost(${post.id})"><i class="fas fa-share me-1"></i>Condividi</button>
+              ${deleteBtn}
             </div>
           </div>
         </div>
@@ -689,6 +692,45 @@
     async function createPost(){ const content=document.getElementById('post-content').value.trim(); if(!content){ showAlert('Scrivi qualcosa prima di pubblicare!','danger'); return; } if(content.length>4000){ showAlert('Il post è troppo lungo (max 4000 caratteri)','danger'); return; } try{ const response=await fetch('/api/posts',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content }) }); const data=await response.json(); if(response.ok){ document.getElementById('post-content').value=''; document.getElementById('char-count').textContent='0'; document.getElementById('post-preview').style.display='none'; showAlert('Post pubblicato!','success'); loadPosts(); } else { showAlert(data.error||'Errore durante la pubblicazione','danger'); } } catch(e){ showAlert('Errore di connessione','danger'); } }
 
     async function toggleLike(postId){ try{ const res=await fetch(`/api/posts/${postId}/like`,{ method:'POST' }); const data=await res.json(); if(res.ok){ const likesSpan=document.getElementById(`likes-${postId}`); const likeBtn=likesSpan.parentElement; likesSpan.textContent=data.likes_count; if(data.is_liked) likeBtn.classList.add('liked'); else likeBtn.classList.remove('liked'); } else { showAlert(data.error||'Errore','danger'); } } catch(e){ showAlert('Errore di connessione','danger'); } }
+
+    async function deletePost(postId){
+      if(!confirm('⚠️ Sei sicuro di voler eliminare questo post?\n\nQuesta azione non può essere annullata.')){
+        return;
+      }
+      
+      try{
+        const res = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if(res.ok){
+          // Rimuovi il post dal DOM con animazione
+          const postElement = document.getElementById(`post-${postId}`);
+          if(postElement){
+            postElement.style.transition = 'all 0.3s ease';
+            postElement.style.transform = 'translateX(-100%)';
+            postElement.style.opacity = '0';
+            
+            setTimeout(() => {
+              postElement.remove();
+              // Aggiorna l'array posts
+              posts = posts.filter(p => p.id !== postId);
+              
+              // Se non ci sono più post, mostra il messaggio
+              if(posts.length === 0){
+                const container = document.getElementById('posts-container');
+                container.innerHTML = `<div class="glass-card p-4 text-center"><i class="fas fa-comments fa-3x mb-3" style="color:var(--text-muted)"></i><h5>Inizia la Conversazione!</h5><p class="text-muted">Condividi il tuo primo post e ispira la community!</p></div>`;
+              }
+            }, 300);
+          }
+          
+          showAlert('🗑️ Post eliminato con successo', 'success');
+        } else {
+          showAlert(data.error || 'Errore durante l\'eliminazione', 'danger');
+        }
+      } catch(e){
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
 
     function formatDate(dateString){ const date=new Date(dateString); const now=new Date(); const s=Math.floor((now-date)/1000); if(s<60) return 'Ora'; if(s<3600) return Math.floor(s/60)+'m'; if(s<86400) return Math.floor(s/3600)+'h'; if(s<604800) return Math.floor(s/86400)+'g'; return date.toLocaleDateString('it-IT'); }
 
