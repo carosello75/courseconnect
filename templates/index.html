@@ -69,6 +69,19 @@
     .post-content pre code{display:block;padding:1rem;border-radius:12px}
     .post-content pre{background:rgba(0,0,0,.35);border:1px solid var(--border-color)}
     
+    /* 🔧 FIX IMMAGINI NEI POST - PROBLEMA RISOLTO! */
+    .post-content img{
+      max-width:100%!important;
+      height:auto!important;
+      border-radius:12px;
+      margin:1rem 0;
+      box-shadow:0 4px 12px rgba(0,0,0,.3);
+      display:block;
+    }
+    .post-content p img{
+      margin:0.5rem 0;
+    }
+    
     /* Testimonianze Styles */
     .testimonials-section{padding:4rem 0;background:rgba(0,0,0,.2)}
     .testimonial-card{background:rgba(45,45,45,.8);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:2rem;height:100%;transition:all .3s ease}
@@ -79,6 +92,11 @@
     .testimonial-author{text-align:center}
     .testimonial-name{font-weight:600;color:var(--primary-color);margin-bottom:.5rem}
     .testimonial-course{color:var(--text-muted);font-size:.9rem}
+    
+    /* Rating Stars Interattive */
+    .rating-stars{display:flex;gap:0.25rem;justify-content:center;margin:1rem 0}
+    .rating-star{font-size:1.5rem;color:#6c757d;cursor:pointer;transition:color .2s ease}
+    .rating-star:hover,.rating-star.active{color:#ffd700}
     
     @media (max-width:991.98px){.navbar .navbar-collapse{background:rgba(26,26,26,.98);border:1px solid var(--border-color);border-radius:12px;padding:.5rem 1rem;margin-top:.75rem}.navbar-nav .nav-link{padding:.5rem 0}}
     @media (max-width:768px){.hero-title{font-size:2.5rem}.hero-subtitle{font-size:1rem}.post-card{padding:1rem}.testimonials-section{padding:2rem 0}.testimonial-card{padding:1.5rem}}
@@ -107,6 +125,7 @@
           <li class="nav-item" id="nav-register"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#registerModal"><i class="fas fa-user-plus me-2"></i>Registrati</a></li>
           <li class="nav-item" id="nav-user" style="display:none;"><span class="nav-link"><i class="fas fa-user me-2"></i>Ciao, <span id="user-name"></span>!</span></li>
           <li class="nav-item" id="nav-logout" style="display:none;"><a class="nav-link" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+          <li class="nav-item" id="nav-review" style="display:none;"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#reviewModal"><i class="fas fa-star me-2"></i>Lascia Recensione</a></li>
         </ul>
       </div>
     </div>
@@ -140,115 +159,11 @@
             <p class="hero-subtitle">Storie di successo reali dalla community CourseConnect</p>
           </div>
           
-          <div class="row">
-            <div class="col-lg-4 mb-4">
-              <div class="testimonial-card fade-in">
-                <img src="https://images.unsplash.com/photo-1494790108755-2616b9c84d50?w=150&h=150&fit=crop&crop=face" alt="Elena Moretti" class="testimonial-avatar">
-                <div class="testimonial-stars">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"CourseConnect mi ha cambiato la vita! Ho trovato il lavoro dei miei sogni grazie ai contatti fatti qui. La community è incredibilmente supportiva e sempre pronta ad aiutare."</p>
-                <div class="testimonial-author">
-                  <div class="testimonial-name">Elena Moretti</div>
-                  <div class="testimonial-course">Frontend Developer • Milano</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-lg-4 mb-4">
-              <div class="testimonial-card fade-in">
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face" alt="Marco Bianchi" class="testimonial-avatar">
-                <div class="testimonial-stars">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"Finalmente un posto dove i corsisti possono davvero connettersi! Ho imparato più dai progetti condivisi qui che in mesi di studio solitario. Consigliatissimo!"</p>
-                <div class="testimonial-author">
-                  <div class="testimonial-name">Marco Bianchi</div>
-                  <div class="testimonial-course">UX Designer • Roma</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-lg-4 mb-4">
-              <div class="testimonial-card fade-in">
-                <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face" alt="Giulia Rossi" class="testimonial-avatar">
-                <div class="testimonial-stars">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"La qualità delle discussioni qui è altissima. Ho ricevuto feedback prezioso sui miei progetti e ho stretto amicizie che durano ancora oggi. Un'esperienza trasformante!"</p>
-                <div class="testimonial-author">
-                  <div class="testimonial-name">Giulia Rossi</div>
-                  <div class="testimonial-course">Digital Marketing Specialist • Napoli</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="row mt-4">
-            <div class="col-lg-4 mb-4">
-              <div class="testimonial-card fade-in">
-                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face" alt="Andrea Conti" class="testimonial-avatar">
-                <div class="testimonial-stars">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"Da quando uso CourseConnect ho triplicato la mia produttività. Condividere progressi e ricevere motivazione dalla community fa davvero la differenza!"</p>
-                <div class="testimonial-author">
-                  <div class="testimonial-name">Andrea Conti</div>
-                  <div class="testimonial-course">Full-Stack Developer • Torino</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-lg-4 mb-4">
-              <div class="testimonial-card fade-in">
-                <img src="https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=150&h=150&fit=crop&crop=face" alt="Sara Martino" class="testimonial-avatar">
-                <div class="testimonial-stars">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"CourseConnect è più di un social network, è una famiglia! Ogni volta che posto un progetto ricevo feedback costruttivo che mi aiuta a migliorare. Grazie team!"</p>
-                <div class="testimonial-author">
-                  <div class="testimonial-name">Sara Martino</div>
-                  <div class="testimonial-course">Data Scientist • Bologna</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-lg-4 mb-4">
-              <div class="testimonial-card fade-in">
-                <img src="https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?w=150&h=150&fit=crop&crop=face" alt="Luca Ferrari" class="testimonial-avatar">
-                <div class="testimonial-stars">
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                  <i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"Ho iniziato come principiante totale e ora lavoro come freelancer. CourseConnect mi ha dato la fiducia e le competenze per realizzare i miei sogni!"</p>
-                <div class="testimonial-author">
-                  <div class="testimonial-name">Luca Ferrari</div>
-                  <div class="testimonial-course">Web Designer • Firenze</div>
-                </div>
-              </div>
+          <div id="testimonials-container">
+            <!-- Le testimonianze verranno caricate dinamicamente -->
+            <div class="text-center">
+              <div class="spinner"></div>
+              <p>Caricamento testimonianze...</p>
             </div>
           </div>
 
@@ -303,6 +218,15 @@
             <p class="mb-2"><strong>💡 Coding:</strong> Usa console.log() per debuggare il JavaScript</p>
             <p class="mb-2"><strong>🎨 Design:</strong> I colori complementari creano contrasto efficace</p>
             <p class="mb-0"><strong>📈 Marketing:</strong> A/B test per ottimizzare le conversioni</p>
+          </div>
+
+          <!-- Pulsante Recensione -->
+          <div class="sidebar glass-card">
+            <h5><i class="fas fa-star me-2"></i>La Tua Esperienza</h5>
+            <p class="mb-3">Condividi la tua esperienza con CourseConnect e aiuta altri corsisti!</p>
+            <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#reviewModal">
+              <i class="fas fa-star me-2"></i>Lascia una Recensione
+            </button>
           </div>
         </div>
       </div>
@@ -392,6 +316,70 @@
     </div>
   </div>
 
+  <!-- MODAL RECENSIONE -->
+  <div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reviewModalLabel"><i class="fas fa-star me-2"></i>Lascia una Recensione</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center mb-4">
+            <p class="text-muted">Condividi la tua esperienza con CourseConnect!</p>
+          </div>
+          <form id="review-form" novalidate>
+            <div class="mb-4">
+              <label class="form-label">La tua foto *</label>
+              <div class="d-flex align-items-center gap-3">
+                <div id="review-avatar-preview" class="testimonial-avatar" style="width:60px;height:60px;background:var(--primary-color);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;"></div>
+                <div>
+                  <input type="file" id="review-photo" accept="image/*" class="form-control" required>
+                  <small class="text-muted">Formati supportati: JPG, PNG, GIF</small>
+                </div>
+              </div>
+              <div class="invalid-feedback">Carica una tua foto</div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Valutazione *</label>
+              <div class="rating-stars" id="review-rating">
+                <i class="fas fa-star rating-star" data-rating="1"></i>
+                <i class="fas fa-star rating-star" data-rating="2"></i>
+                <i class="fas fa-star rating-star" data-rating="3"></i>
+                <i class="fas fa-star rating-star" data-rating="4"></i>
+                <i class="fas fa-star rating-star" data-rating="5"></i>
+              </div>
+              <input type="hidden" id="review-rating-value" required>
+              <div class="text-center">
+                <small class="text-muted">Clicca sulle stelle per valutare</small>
+              </div>
+              <div class="invalid-feedback">Seleziona una valutazione</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="review-text" class="form-label">La tua recensione *</label>
+              <textarea class="form-control" id="review-text" rows="4" placeholder="Racconta la tua esperienza con CourseConnect..." maxlength="500" required></textarea>
+              <div class="text-end mt-2"><small class="text-muted"><span id="review-char-count">0</span>/500 caratteri</small></div>
+              <div class="invalid-feedback">Scrivi una recensione</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="review-location" class="form-label">Città (Opzionale)</label>
+              <input type="text" class="form-control" id="review-location" placeholder="es. Milano">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="button" class="btn btn-primary" onclick="submitReview()" id="review-submit-btn">
+            <i class="fas fa-star me-2"></i>Pubblica Recensione
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
@@ -400,9 +388,9 @@
 
   <script>
     // State Management
-    let currentUser = null; let posts = [];
+    let currentUser = null; let posts = []; let currentReviewRating = 0; let reviews = [];
 
-    document.addEventListener('DOMContentLoaded', function(){ checkAuth(); setupEventListeners(); });
+    document.addEventListener('DOMContentLoaded', function(){ checkAuth(); setupEventListeners(); loadTestimonials(); });
 
     function setupEventListeners(){
       const postContent = document.getElementById('post-content');
@@ -410,8 +398,225 @@
         postContent.addEventListener('input', function(){ const cc = document.getElementById('char-count'); if(cc){ cc.textContent = this.value.length; } });
         postContent.addEventListener('keydown', function(e){ if(e.ctrlKey && e.key==='Enter'){ createPost(); } });
       }
+      
+      const reviewText = document.getElementById('review-text');
+      if(reviewText){
+        reviewText.addEventListener('input', function(){ const cc = document.getElementById('review-char-count'); if(cc){ cc.textContent = this.value.length; } });
+      }
+
       const formFields = ['register-nome','register-cognome','register-username','register-email','register-corso','register-password'];
       formFields.forEach(id=>{ const f=document.getElementById(id); if(f){ f.addEventListener('input',()=>validateField(f)); f.addEventListener('blur',()=>validateField(f)); } });
+      
+      // Rating stars
+      document.querySelectorAll('.rating-star').forEach(star => {
+        star.addEventListener('click', function(){
+          const rating = parseInt(this.dataset.rating);
+          setRating(rating);
+        });
+      });
+
+      // Review photo preview
+      const reviewPhoto = document.getElementById('review-photo');
+      if(reviewPhoto){
+        reviewPhoto.addEventListener('change', previewReviewPhoto);
+      }
+    }
+
+    function setRating(rating){
+      currentReviewRating = rating;
+      document.getElementById('review-rating-value').value = rating;
+      
+      document.querySelectorAll('.rating-star').forEach((star, index) => {
+        if(index < rating){
+          star.classList.add('active');
+        } else {
+          star.classList.remove('active');
+        }
+      });
+    }
+
+    function previewReviewPhoto(){
+      const file = this.files[0];
+      if(!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e){
+        const preview = document.getElementById('review-avatar-preview');
+        preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Preview">`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Testimonianze dinamiche
+    async function loadTestimonials(){
+      const container = document.getElementById('testimonials-container');
+      if(!container) return;
+      
+      try{
+        // Carica recensioni utenti
+        const res = await fetch('/api/reviews');
+        if(res.ok){
+          const data = await res.json();
+          reviews = data.reviews || [];
+        }
+        
+        // Testimonianze statiche + recensioni utenti
+        const staticTestimonials = [
+          {
+            name: "Elena Moretti",
+            course: "Frontend Developer • Milano", 
+            text: "CourseConnect mi ha cambiato la vita! Ho trovato il lavoro dei miei sogni grazie ai contatti fatti qui. La community è incredibilmente supportiva e sempre pronta ad aiutare.",
+            photo: "https://randomuser.me/api/portraits/women/1.jpg",
+            rating: 5,
+            isStatic: true
+          },
+          {
+            name: "Marco Bianchi", 
+            course: "UX Designer • Roma",
+            text: "Finalmente un posto dove i corsisti possono davvero connettersi! Ho imparato più dai progetti condivisi qui che in mesi di studio solitario. Consigliatissimo!",
+            photo: "https://randomuser.me/api/portraits/men/1.jpg", 
+            rating: 5,
+            isStatic: true
+          },
+          {
+            name: "Giulia Rossi",
+            course: "Digital Marketing Specialist • Napoli",
+            text: "La qualità delle discussioni qui è altissima. Ho ricevuto feedback prezioso sui miei progetti e ho stretto amicizie che durano ancora oggi. Un'esperienza trasformante!",
+            photo: "https://randomuser.me/api/portraits/women/2.jpg",
+            rating: 5, 
+            isStatic: true
+          }
+        ];
+        
+        const allTestimonials = [...staticTestimonials, ...reviews];
+        renderTestimonials(allTestimonials);
+        
+      } catch(e){
+        // Fallback a testimonianze statiche
+        const staticTestimonials = [
+          {
+            name: "Elena Moretti",
+            course: "Frontend Developer • Milano", 
+            text: "CourseConnect mi ha cambiato la vita! Ho trovato il lavoro dei miei sogni grazie ai contatti fatti qui. La community è incredibilmente supportiva e sempre pronta ad aiutare.",
+            photo: "https://randomuser.me/api/portraits/women/1.jpg",
+            rating: 5
+          },
+          {
+            name: "Marco Bianchi", 
+            course: "UX Designer • Roma",
+            text: "Finalmente un posto dove i corsisti possono davvero connettersi! Ho imparato più dai progetti condivisi qui che in mesi di studio solitario. Consigliatissimo!",
+            photo: "https://randomuser.me/api/portraits/men/1.jpg", 
+            rating: 5
+          },
+          {
+            name: "Giulia Rossi",
+            course: "Digital Marketing Specialist • Napoli",
+            text: "La qualità delle discussioni qui è altissima. Ho ricevuto feedback prezioso sui miei progetti e ho stretto amicizie che durano ancora oggi. Un'esperienza trasformante!",
+            photo: "https://randomuser.me/api/portraits/women/2.jpg",
+            rating: 5
+          }
+        ];
+        renderTestimonials(staticTestimonials);
+      }
+    }
+
+    function renderTestimonials(testimonials){
+      const container = document.getElementById('testimonials-container');
+      if(!container) return;
+      
+      if(testimonials.length === 0){
+        container.innerHTML = '<div class="text-center"><p class="text-muted">Nessuna recensione ancora. Sii il primo!</p></div>';
+        return;
+      }
+      
+      let html = '<div class="row">';
+      testimonials.forEach(t => {
+        const stars = '<i class="fas fa-star"></i>'.repeat(t.rating);
+        html += `
+          <div class="col-lg-4 mb-4">
+            <div class="testimonial-card fade-in">
+              <img src="${t.photo}" alt="${t.name}" class="testimonial-avatar" onerror="this.src='https://randomuser.me/api/portraits/men/1.jpg'">
+              <div class="testimonial-stars">${stars}</div>
+              <p class="testimonial-text">"${t.text}"</p>
+              <div class="testimonial-author">
+                <div class="testimonial-name">${t.name}</div>
+                <div class="testimonial-course">${t.course}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    async function submitReview(){
+      if(!currentUser){
+        showAlert('Devi essere loggato per lasciare una recensione', 'danger');
+        return;
+      }
+      
+      const text = document.getElementById('review-text').value.trim();
+      const location = document.getElementById('review-location').value.trim();
+      const photo = document.getElementById('review-photo').files[0];
+      
+      if(!text || !currentReviewRating || !photo){
+        showAlert('Compila tutti i campi obbligatori', 'danger');
+        return;
+      }
+      
+      const btn = document.getElementById('review-submit-btn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Pubblicando...';
+      
+      try{
+        // Upload foto
+        const formData = new FormData();
+        formData.append('file', photo);
+        
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if(!uploadRes.ok) throw new Error('Upload foto fallito');
+        const uploadData = await uploadRes.json();
+        
+        // Invia recensione
+        const reviewData = {
+          text: text,
+          rating: currentReviewRating,
+          location: location,
+          photo_url: uploadData.url
+        };
+        
+        const reviewRes = await fetch('/api/reviews', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(reviewData)
+        });
+        
+        if(!reviewRes.ok) throw new Error('Invio recensione fallito');
+        
+        showAlert('🎉 Recensione pubblicata con successo!', 'success');
+        closeModal('reviewModal');
+        
+        // Reset form
+        document.getElementById('review-form').reset();
+        document.getElementById('review-avatar-preview').innerHTML = '';
+        setRating(0);
+        document.getElementById('review-char-count').textContent = '0';
+        
+        // Ricarica testimonianze
+        loadTestimonials();
+        
+      } catch(err){
+        showAlert(err.message, 'danger');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
     }
 
     // Markdown setup
@@ -454,8 +659,8 @@
 
     async function logout(){ try{ await fetch('/api/logout',{ method:'POST' }); currentUser=null; showAlert('Logout effettuato','success'); showGuestSection(); } catch(e){ showAlert('Errore durante il logout','danger'); } }
 
-    function showGuestSection(){ document.getElementById('guest-section').style.display='block'; document.getElementById('user-section').style.display='none'; document.getElementById('nav-login').style.display='block'; document.getElementById('nav-register').style.display='block'; document.getElementById('nav-user').style.display='none'; document.getElementById('nav-logout').style.display='none'; }
-    function showUserSection(){ document.getElementById('guest-section').style.display='none'; document.getElementById('user-section').style.display='block'; document.getElementById('nav-login').style.display='none'; document.getElementById('nav-register').style.display='none'; document.getElementById('nav-user').style.display='block'; document.getElementById('nav-logout').style.display='block'; if(currentUser){ document.getElementById('user-name').textContent=currentUser.nome; } loadActiveUsers(); }
+    function showGuestSection(){ document.getElementById('guest-section').style.display='block'; document.getElementById('user-section').style.display='none'; document.getElementById('nav-login').style.display='block'; document.getElementById('nav-register').style.display='block'; document.getElementById('nav-user').style.display='none'; document.getElementById('nav-logout').style.display='none'; document.getElementById('nav-review').style.display='none'; }
+    function showUserSection(){ document.getElementById('guest-section').style.display='none'; document.getElementById('user-section').style.display='block'; document.getElementById('nav-login').style.display='none'; document.getElementById('nav-register').style.display='none'; document.getElementById('nav-user').style.display='block'; document.getElementById('nav-logout').style.display='block'; document.getElementById('nav-review').style.display='block'; if(currentUser){ document.getElementById('user-name').textContent=currentUser.nome; } loadActiveUsers(); }
 
     // Users sidebar
     async function loadActiveUsers(){ const box=document.getElementById('active-users'); if(!box) return; box.innerHTML='<div class="text-muted">Caricamento...</div>'; try{ const res=await fetch('/api/users?limit=10'); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Errore'); if(!data.users||data.users.length===0){ box.innerHTML='<small class="text-muted">Nessun utente ancora.</small>'; return; } box.innerHTML = data.users.map(u=>`<div class="d-flex align-items-center mb-3"><div class="user-avatar" style="background:${u.avatar_color}; width:40px; height:40px;">${u.initials}</div><div><div class="fw-bold">${u.nome} ${u.cognome}</div><small class="text-muted">@${u.username} • ${u.corso}</small></div></div>`).join(''); } catch(e){ box.innerHTML=`<div class="text-danger"><small>${e.message}</small></div>`; } }
