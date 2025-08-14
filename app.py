@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti  
-# app.py - Backend Flask Completo
+# app.py - Backend Flask Completo (Senza Utenti Demo)
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
@@ -196,73 +196,59 @@ def get_current_user():
 
 
 def _seed_data():
-    """Popola dati demo in modo idempotente."""
-    created_something = False
-
+    """Popola solo dati essenziali (NO utenti demo - solo admin)."""
+    # Crea solo admin se non esiste (per gestione piattaforma)
     admin = User.query.filter_by(username='admin').first()
     if not admin:
         admin = User(
             username='admin',
             email='admin@courseconnect.it',
-            nome='Admin',
+            nome='Amministratore',
             cognome='CourseConnect',
-            corso='Amministratore',
-            is_admin=True
+            corso='Gestione Piattaforma',
+            is_admin=True,
+            bio='Gestisco la piattaforma CourseConnect per garantire la migliore esperienza a tutti i corsisti.'
         )
         admin.set_password('admin123')
         db.session.add(admin)
-        created_something = True
-
-    examples = [
-        {
-            'username': 'marco_dev',
-            'email': 'marco@example.com',
-            'nome': 'Marco',
-            'cognome': 'Rossi',
-            'corso': 'Sviluppo Web Full-Stack',
-            'bio': '🚀 Appassionato di tecnologia e coding'
-        },
-        {
-            'username': 'sofia_design',
-            'email': 'sofia@example.com',
-            'nome': 'Sofia',
-            'cognome': 'Bianchi',
-            'corso': 'UI/UX Design',
-            'bio': '🎨 Designer creativa con passione per l\'estetica'
-        }
-    ]
-    for u in examples:
-        if not User.query.filter_by(username=u['username']).first():
-            user = User(**u)
-            user.set_password('password123')
-            db.session.add(user)
-            created_something = True
-
-    if created_something:
         db.session.commit()
+        
+        # Post di benvenuto dell'admin (solo se non ci sono altri post)
+        if Post.query.count() == 0:
+            welcome_post = Post(
+                content='''🎉 **Benvenuti in CourseConnect!**
 
-    # Post demo (solo se non ce ne sono)
-    if Post.query.count() == 0:
-        admin = User.query.filter_by(username='admin').first()
-        marco = User.query.filter_by(username='marco_dev').first()
-        demo_posts = [
-            {
-                'content': '🎉 Benvenuti in CourseConnect! Il social network dedicato ai corsisti. Condividiamo esperienze, progetti e cresciamo insieme! 🚀',
-                'user_id': admin.id if admin else None
-            },
-            {
-                'content': '```js\nconsole.log("Ciao CourseConnect!")\n```',
-                'user_id': (marco or admin).id if (marco or admin) else None
-            }
-        ]
-        for p in demo_posts:
-            if p['user_id'] is not None:
-                db.session.add(Post(**p))
-        db.session.commit()
+Il social network dedicato ai corsisti è finalmente online! 🚀
+
+✨ **Cosa puoi fare:**
+- 👥 **Connetterti** con altri corsisti da tutta Italia
+- 📝 **Condividere** progetti, esperienze e successi
+- 💡 **Scambiare** consigli, risorse e opportunità
+- 📸 **Caricare immagini** nei tuoi post
+- ❤️ **Mettere like** e commentare
+- 🔗 **Creare collegamenti** con la community
+
+**Inizia subito a condividere la tua esperienza di apprendimento!**
+
+Raccontaci:
+- Su cosa stai lavorando
+- Quali sfide stai affrontando  
+- I tuoi successi e traguardi
+- Consigli per altri corsisti
+
+*Insieme possiamo crescere più velocemente!* 📚✨
+
+*Buon studio a tutti!*
+**- Team CourseConnect**''',
+                user_id=admin.id
+            )
+            db.session.add(welcome_post)
+            db.session.commit()
+            print("✅ Post di benvenuto creato!")
 
 
 def create_tables():
-    """Crea tabelle database e fa seed idempotente."""
+    """Crea tabelle database e fa seed minimo (solo admin)."""
     db.create_all()
     _seed_data()
 
