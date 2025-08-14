@@ -84,6 +84,124 @@
       margin:0.5rem 0;
     }
     
+    /* 💬 COMMENTI STYLES - NUOVO SISTEMA */
+    .comments-section{
+      margin-top:1rem;
+      padding-top:1rem;
+      border-top:1px solid var(--border-color);
+    }
+    .comment-item{
+      padding:0.75rem 0;
+      border-bottom:1px solid rgba(255,255,255,.05);
+    }
+    .comment-item:last-child{
+      border-bottom:none;
+    }
+    .comment-avatar{
+      width:32px;
+      height:32px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:600;
+      color:#fff;
+      font-size:0.8rem;
+      margin-right:0.75rem;
+      flex-shrink:0;
+    }
+    .comment-content{
+      font-size:0.9rem;
+      line-height:1.4;
+      margin-bottom:0.25rem;
+    }
+    .comment-meta{
+      font-size:0.75rem;
+      color:var(--text-muted);
+      display:flex;
+      align-items:center;
+      gap:0.5rem;
+    }
+    .comment-author{
+      font-weight:600;
+      color:var(--primary-color);
+    }
+    .comment-form{
+      margin-top:1rem;
+      padding:1rem;
+      background:rgba(255,255,255,.02);
+      border-radius:12px;
+      border:1px dashed var(--border-color);
+    }
+    .comment-input{
+      background:rgba(45,45,45,.8);
+      border:1px solid var(--border-color);
+      color:var(--text-light);
+      border-radius:8px;
+      padding:0.5rem;
+      font-size:0.9rem;
+      resize:vertical;
+      min-height:60px;
+    }
+    .comment-input:focus{
+      background:rgba(45,45,45,.95);
+      border-color:var(--primary-color);
+      box-shadow:0 0 0 .15rem rgba(102,126,234,.25);
+      outline:none;
+    }
+    .comment-input::placeholder{
+      color:var(--text-muted);
+    }
+    .comment-btn{
+      background:var(--primary-color);
+      color:white;
+      border:none;
+      padding:0.5rem 1rem;
+      border-radius:6px;
+      font-size:0.85rem;
+      font-weight:600;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    .comment-btn:hover{
+      background:var(--secondary-color);
+      transform:translateY(-1px);
+    }
+    .comment-btn:disabled{
+      background:var(--text-muted);
+      cursor:not-allowed;
+      transform:none;
+    }
+    .comment-delete{
+      color:var(--danger-color);
+      background:none;
+      border:none;
+      font-size:0.7rem;
+      padding:0.2rem 0.4rem;
+      border-radius:4px;
+      cursor:pointer;
+      transition:background .2s ease;
+    }
+    .comment-delete:hover{
+      background:rgba(255,107,107,.1);
+    }
+    .comments-toggle{
+      color:var(--text-muted);
+      background:none;
+      border:none;
+      font-size:0.85rem;
+      cursor:pointer;
+      transition:color .2s ease;
+    }
+    .comments-toggle:hover{
+      color:var(--primary-color);
+    }
+    .comments-counter{
+      font-size:0.8rem;
+      color:var(--text-muted);
+      margin-left:0.5rem;
+    }
+    
     /* Testimonianze Styles */
     .testimonials-section{padding:4rem 0;background:rgba(0,0,0,.2)}
     .testimonial-card{background:rgba(45,45,45,.8);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:2rem;height:100%;transition:all .3s ease}
@@ -101,7 +219,7 @@
     .rating-star:hover,.rating-star.active{color:#ffd700}
     
     @media (max-width:991.98px){.navbar .navbar-collapse{background:rgba(26,26,26,.98);border:1px solid var(--border-color);border-radius:12px;padding:.5rem 1rem;margin-top:.75rem}.navbar-nav .nav-link{padding:.5rem 0}}
-    @media (max-width:768px){.hero-title{font-size:2.5rem}.hero-subtitle{font-size:1rem}.post-card{padding:1rem}.testimonials-section{padding:2rem 0}.testimonial-card{padding:1.5rem}}
+    @media (max-width:768px){.hero-title{font-size:2.5rem}.hero-subtitle{font-size:1rem}.post-card{padding:1rem}.testimonials-section{padding:2rem 0}.testimonial-card{padding:1.5rem}.comment-form{padding:0.75rem}.comment-input{min-height:50px}}
     .fade-in{animation:fadeIn .6s ease-in}
     @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
     .slide-up{animation:slideUp .4s ease-out}
@@ -390,7 +508,11 @@
 
   <script>
     // State Management
-    let currentUser = null; let posts = []; let currentReviewRating = 0; let reviews = [];
+    let currentUser = null; 
+    let posts = []; 
+    let currentReviewRating = 0; 
+    let reviews = [];
+    let postComments = {}; // Memorizza commenti per ogni post
 
     document.addEventListener('DOMContentLoaded', function(){ checkAuth(); setupEventListeners(); loadTestimonials(); });
 
@@ -447,6 +569,178 @@
         preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Preview">`;
       };
       reader.readAsDataURL(file);
+    }
+
+    // 💬 FUNZIONI COMMENTI - NUOVE FUNZIONALITÀ
+    async function toggleComments(postId) {
+      const commentsSection = document.getElementById(`comments-${postId}`);
+      
+      if (commentsSection.style.display === 'none' || !commentsSection.style.display) {
+        // Mostra commenti
+        commentsSection.style.display = 'block';
+        await loadComments(postId);
+      } else {
+        // Nascondi commenti
+        commentsSection.style.display = 'none';
+      }
+    }
+
+    async function loadComments(postId) {
+      const container = document.getElementById(`comments-list-${postId}`);
+      if (!container) return;
+      
+      container.innerHTML = '<div class="text-muted text-center p-2"><i class="fas fa-spinner fa-spin me-2"></i>Caricamento commenti...</div>';
+      
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments`);
+        const data = await res.json();
+        
+        if (res.ok && data.comments) {
+          postComments[postId] = data.comments;
+          renderComments(postId, data.comments);
+        } else {
+          container.innerHTML = '<div class="text-muted text-center p-2">Errore caricamento commenti</div>';
+        }
+      } catch (e) {
+        container.innerHTML = '<div class="text-muted text-center p-2">Errore di connessione</div>';
+      }
+    }
+
+    function renderComments(postId, comments) {
+      const container = document.getElementById(`comments-list-${postId}`);
+      if (!container) return;
+      
+      if (comments.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center p-2"><i class="fas fa-comment me-2"></i>Nessun commento ancora. Sii il primo!</div>';
+        return;
+      }
+      
+      container.innerHTML = comments.map(comment => {
+        const isAuthor = currentUser && (comment.author.id === currentUser.id || currentUser.is_admin);
+        const deleteBtn = isAuthor ? 
+          `<button class="comment-delete" onclick="deleteComment(${comment.id}, ${postId})" title="Elimina commento">
+             <i class="fas fa-trash"></i>
+           </button>` : '';
+        
+        return `
+          <div class="comment-item" id="comment-${comment.id}">
+            <div class="d-flex">
+              <div class="comment-avatar" style="background:${comment.author.avatar_color}">${comment.author.initials}</div>
+              <div class="flex-grow-1">
+                <div class="comment-content">${comment.content}</div>
+                <div class="comment-meta">
+                  <span class="comment-author">${comment.author.nome} ${comment.author.cognome}</span>
+                  <span>•</span>
+                  <span>${formatDate(comment.created_at)}</span>
+                  ${deleteBtn}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function addComment(postId) {
+      const textarea = document.getElementById(`comment-input-${postId}`);
+      const content = textarea.value.trim();
+      
+      if (!content) {
+        showAlert('Scrivi un commento prima di inviare', 'danger');
+        return;
+      }
+      
+      if (content.length > 1000) {
+        showAlert('Commento troppo lungo (max 1000 caratteri)', 'danger');
+        return;
+      }
+      
+      const btn = document.getElementById(`comment-btn-${postId}`);
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Invio...';
+      
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          textarea.value = '';
+          await loadComments(postId); // Ricarica commenti
+          showAlert('💬 Commento aggiunto!', 'success');
+          
+          // Aggiorna il contatore commenti nel post
+          updateCommentsCount(postId);
+        } else {
+          showAlert(data.error || 'Errore durante l\'invio', 'danger');
+        }
+      } catch (e) {
+        showAlert('Errore di connessione', 'danger');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    async function deleteComment(commentId, postId) {
+      if (!confirm('Sei sicuro di voler eliminare questo commento?')) {
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if (res.ok) {
+          // Rimuovi commento dal DOM
+          const commentElement = document.getElementById(`comment-${commentId}`);
+          if (commentElement) {
+            commentElement.style.transition = 'all 0.3s ease';
+            commentElement.style.opacity = '0';
+            commentElement.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+              commentElement.remove();
+              // Se non ci sono più commenti, mostra messaggio
+              const container = document.getElementById(`comments-list-${postId}`);
+              if (container && container.children.length === 0) {
+                container.innerHTML = '<div class="text-muted text-center p-2"><i class="fas fa-comment me-2"></i>Nessun commento ancora. Sii il primo!</div>';
+              }
+            }, 300);
+          }
+          
+          // Aggiorna contatore
+          updateCommentsCount(postId);
+          showAlert('🗑️ Commento eliminato', 'success');
+        } else {
+          showAlert(data.error || 'Errore durante l\'eliminazione', 'danger');
+        }
+      } catch (e) {
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
+
+    function updateCommentsCount(postId) {
+      // Ricarica il post specifico per aggiornare il contatore
+      fetch(`/api/posts`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.posts) {
+            const post = data.posts.find(p => p.id === postId);
+            if (post) {
+              const counter = document.querySelector(`[onclick="toggleComments(${postId})"] .comments-counter`);
+              if (counter) {
+                counter.textContent = post.comments_count > 0 ? `(${post.comments_count})` : '';
+              }
+            }
+          }
+        })
+        .catch(e => console.log('Errore aggiornamento contatore:', e));
     }
 
     // Testimonianze dinamiche
@@ -670,24 +964,83 @@
     // Posts
     async function loadPosts(){ const container=document.getElementById('posts-container'); container.innerHTML='<div class="loading"><div class="spinner"></div><p>Caricamento post...</p></div>'; try{ const res=await fetch('/api/posts'); const data=await res.json(); if(res.ok){ posts=data.posts; renderPosts(); } else { container.innerHTML=`<div class="alert alert-danger">Errore: ${data.error}</div>`; } } catch(e){ container.innerHTML='<div class="alert alert-danger">Errore di connessione</div>'; } }
 
-    function renderPosts(){ const container=document.getElementById('posts-container'); if(posts.length===0){ container.innerHTML = `<div class="glass-card p-4 text-center"><i class="fas fa-comments fa-3x mb-3" style="color:var(--text-muted)"></i><h5>Inizia la Conversazione!</h5><p class="text-muted">Condividi il tuo primo post e ispira la community!</p></div>`; return; } container.innerHTML = posts.map(post=>{ const html=renderMarkdown(post.content); const isAuthor = currentUser && (post.author.id === currentUser.id || currentUser.is_admin); const deleteBtn = isAuthor ? `<button class="action-btn text-danger" onclick="deletePost(${post.id})" title="Elimina post"><i class="fas fa-trash me-1"></i>Elimina</button>` : ''; return `
-      <div class="post-card glass-card slide-up" id="post-${post.id}">
-        <div class="d-flex align-items-start">
-          <div class="user-avatar" style="background:${post.author.avatar_color}">${post.author.initials}</div>
-          <div class="flex-grow-1">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-              <div><h6 class="mb-0">${post.author.nome} ${post.author.cognome}</h6><small class="text-muted">@${post.author.username} • ${post.author.corso}</small></div>
-              <small class="text-muted">${formatDate(post.created_at)}</small>
+    function renderPosts(){ 
+      const container=document.getElementById('posts-container'); 
+      if(posts.length===0){ 
+        container.innerHTML = `<div class="glass-card p-4 text-center"><i class="fas fa-comments fa-3x mb-3" style="color:var(--text-muted)"></i><h5>Inizia la Conversazione!</h5><p class="text-muted">Condividi il tuo primo post e ispira la community!</p></div>`; 
+        return; 
+      } 
+      
+      container.innerHTML = posts.map(post=>{ 
+        const html=renderMarkdown(post.content); 
+        const isAuthor = currentUser && (post.author.id === currentUser.id || currentUser.is_admin); 
+        const deleteBtn = isAuthor ? `<button class="action-btn text-danger" onclick="deletePost(${post.id})" title="Elimina post"><i class="fas fa-trash me-1"></i>Elimina</button>` : ''; 
+        const commentsCount = post.comments_count > 0 ? `(${post.comments_count})` : '';
+        
+        return `
+          <div class="post-card glass-card slide-up" id="post-${post.id}">
+            <div class="d-flex align-items-start">
+              <div class="user-avatar" style="background:${post.author.avatar_color}">${post.author.initials}</div>
+              <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div><h6 class="mb-0">${post.author.nome} ${post.author.cognome}</h6><small class="text-muted">@${post.author.username} • ${post.author.corso}</small></div>
+                  <small class="text-muted">${formatDate(post.created_at)}</small>
+                </div>
+                <div class="post-content">${html}</div>
+                <div class="post-actions">
+                  <button class="action-btn ${post.is_liked ? 'liked' : ''}" onclick="toggleLike(${post.id})"><i class="fas fa-heart me-1"></i><span id="likes-${post.id}">${post.likes_count}</span></button>
+                  <button class="action-btn comments-toggle" onclick="toggleComments(${post.id})"><i class="fas fa-comment me-1"></i>Commenti<span class="comments-counter">${commentsCount}</span></button>
+                  <button class="action-btn" onclick="sharePost(${post.id})"><i class="fas fa-share me-1"></i>Condividi</button>
+                  ${deleteBtn}
+                </div>
+                
+                <!-- SEZIONE COMMENTI -->
+                <div class="comments-section" id="comments-${post.id}" style="display:none;">
+                  <div id="comments-list-${post.id}">
+                    <!-- I commenti verranno caricati dinamicamente -->
+                  </div>
+                  
+                  <!-- FORM NUOVO COMMENTO -->
+                  ${currentUser ? `
+                    <div class="comment-form">
+                      <div class="d-flex gap-2">
+                        <div class="comment-avatar" style="background:${currentUser.avatar_color}">${currentUser.initials}</div>
+                        <div class="flex-grow-1">
+                          <textarea 
+                            class="comment-input w-100" 
+                            id="comment-input-${post.id}" 
+                            placeholder="Scrivi un commento..." 
+                            maxlength="1000"
+                            rows="2"></textarea>
+                          <div class="d-flex justify-content-between align-items-center mt-2">
+                            <small class="text-muted">Max 1000 caratteri</small>
+                            <button 
+                              class="comment-btn" 
+                              id="comment-btn-${post.id}"
+                              onclick="addComment(${post.id})">
+                              <i class="fas fa-paper-plane me-1"></i>Invia
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ` : `
+                    <div class="text-center p-3">
+                      <small class="text-muted">
+                        <i class="fas fa-lock me-1"></i>
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="text-decoration-none">Accedi</a> 
+                        per commentare
+                      </small>
+                    </div>
+                  `}
+                </div>
+              </div>
             </div>
-            <div class="post-content">${html}</div>
-            <div class="post-actions">
-              <button class="action-btn ${post.is_liked ? 'liked' : ''}" onclick="toggleLike(${post.id})"><i class="fas fa-heart me-1"></i><span id="likes-${post.id}">${post.likes_count}</span></button>
-              <button class="action-btn" onclick="sharePost(${post.id})"><i class="fas fa-share me-1"></i>Condividi</button>
-              ${deleteBtn}
-            </div>
-          </div>
-        </div>
-      </div>`; }).join(''); container.querySelectorAll('.post-card .post-content').forEach(el=>hljsApply(el)); }
+          </div>`; 
+      }).join(''); 
+      
+      container.querySelectorAll('.post-card .post-content').forEach(el=>hljsApply(el)); 
+    }
 
     async function createPost(){ const content=document.getElementById('post-content').value.trim(); if(!content){ showAlert('Scrivi qualcosa prima di pubblicare!','danger'); return; } if(content.length>4000){ showAlert('Il post è troppo lungo (max 4000 caratteri)','danger'); return; } try{ const response=await fetch('/api/posts',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content }) }); const data=await response.json(); if(response.ok){ document.getElementById('post-content').value=''; document.getElementById('char-count').textContent='0'; document.getElementById('post-preview').style.display='none'; showAlert('Post pubblicato!','success'); loadPosts(); } else { showAlert(data.error||'Errore durante la pubblicazione','danger'); } } catch(e){ showAlert('Errore di connessione','danger'); } }
 
