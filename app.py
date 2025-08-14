@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti  
-# app.py - Backend Flask con Sistema Recensioni E COMMENTI
+# app.py - Backend Flask con Sistema Completo + Eliminazione Account + Video
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
@@ -47,11 +47,12 @@ if db_url.startswith('sqlite'):
 app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
 app.config.setdefault('SESSION_COOKIE_SECURE', True)
 
-# Uploads (immagini)
+# Uploads (immagini + video)
 UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB per video
 
 db = SQLAlchemy(app)
 
@@ -178,17 +179,13 @@ class Like(db.Model):
 class PostAttachment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    type = db.Column(db.String(20), default='image')  # image, file in futuro
+    type = db.Column(db.String(20), default='image')  # image, video
     url = db.Column(db.String(500), nullable=False)
     filename = db.Column(db.String(255), default='')
     size = db.Column(db.Integer, default=0)
 
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
 
-
-# ========================================
-# NUOVO MODELLO: RECENSIONI UTENTI
-# ========================================
 
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -212,6 +209,30 @@ class Review(db.Model):
             'created_at': (self.created_at or datetime.utcnow()).isoformat(),
             'isStatic': False
         }
+
+
+# ========================================
+# 🗑️ NUOVO MODELLO: FEEDBACK ELIMINAZIONE ACCOUNT
+# ========================================
+class AccountDeletionFeedback(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)  # ID dell'utente eliminato
+    username = db.Column(db.String(80), nullable=False)  # Backup username
+    email = db.Column(db.String(120), nullable=False)  # Backup email
+    reason = db.Column(db.String(100), nullable=False)  # Motivo eliminazione
+    feedback = db.Column(db.Text, nullable=True)  # Feedback opzionale
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'reason': self.reason,
+            'feedback': self.feedback,
+            'created_at': self.created_at.isoformat()
+        }
+
 
 # ========================================
 # UTILITY
@@ -254,7 +275,7 @@ Il social network dedicato ai corsisti è finalmente online! 🚀
 - 👥 **Connetterti** con altri corsisti da tutta Italia
 - 📝 **Condividere** progetti, esperienze e successi
 - 💡 **Scambiare** consigli, risorse e opportunità
-- 📸 **Caricare immagini** nei tuoi post
+- 📸 **Caricare immagini e video** nei tuoi post
 - ❤️ **Mettere like** e commentare
 - 🔗 **Creare collegamenti** con la community
 - ⭐ **Lasciare recensioni** per aiutare altri corsisti
@@ -322,6 +343,17 @@ def _payload():
 
 def _allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def get_file_type(filename: str) -> str:
+    """Determina se il file è immagine o video"""
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    if ext in {'png', 'jpg', 'jpeg', 'gif', 'webp'}:
+        return 'image'
+    elif ext in {'mp4', 'mov', 'avi', 'mkv', 'webm'}:
+        return 'video'
+    return 'unknown'
+
 
 # ========================================
 # API ROUTES
@@ -437,6 +469,61 @@ def get_current_user_info():
     if not user:
         return jsonify({'authenticated': False, 'user': None})
     return jsonify({'authenticated': True, 'user': user.to_dict()})
+
+
+# ========================================
+# 🗑️ API ELIMINAZIONE ACCOUNT - NUOVA FUNZIONALITÀ
+# ========================================
+
+@app.route('/api/delete-account', methods=['POST'])
+def delete_account():
+    """Elimina account utente con feedback"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        # Verifica che non sia admin
+        if user.is_admin:
+            return jsonify({'error': 'Gli account admin non possono essere eliminati'}), 403
+
+        data = _payload()
+        password = data.get('password', '')
+        reason = data.get('reason', '').strip()
+        feedback = data.get('feedback', '').strip()
+
+        # Verifica password
+        if not password or not user.check_password(password):
+            return jsonify({'error': 'Password non corretta'}), 401
+
+        if not reason:
+            return jsonify({'error': 'Motivo richiesto'}), 400
+
+        # Salva feedback prima di eliminare l'utente
+        feedback_record = AccountDeletionFeedback(
+            user_id=user.id,
+            username=user.username,
+            email=user.email,
+            reason=reason,
+            feedback=feedback
+        )
+        db.session.add(feedback_record)
+
+        # Elimina utente (cascade eliminerà automaticamente post, commenti, like, recensioni)
+        db.session.delete(user)
+        db.session.commit()
+
+        # Logout automatico
+        session.clear()
+
+        return jsonify({
+            'message': 'Account eliminato con successo. Grazie per il feedback.',
+            'feedback_saved': True
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore eliminazione account: {str(e)}'}), 500
 
 
 # ======= USERS API =======
@@ -595,7 +682,7 @@ def delete_post(post_id):
         return jsonify({'error': f'Errore eliminazione post: {str(e)}'}), 500
 
 
-# ======= 🆕 COMMENTI API - NUOVE FUNZIONALITÀ =======
+# ======= 💬 COMMENTI API =======
 
 @app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
 def get_comments(post_id):
@@ -866,7 +953,7 @@ def upload_file():
         return jsonify({'error': 'Filename vuoto'}), 400
 
     if not _allowed_file(f.filename):
-        return jsonify({'error': 'Estensione non permessa'}), 400
+        return jsonify({'error': 'Estensione non permessa. Supportati: immagini (PNG, JPG, GIF) e video (MP4, MOV, AVI, MKV, WEBM)'}), 400
 
     base = secure_filename(f.filename)
     name, ext = os.path.splitext(base)
@@ -874,10 +961,21 @@ def upload_file():
     final_name = f"{user.id}_{ts}{ext.lower()}"
 
     save_path = os.path.join(app.config['UPLOAD_FOLDER'], final_name)
-    f.save(save_path)
-
-    file_url = f"/uploads/{final_name}"
-    return jsonify({'url': file_url, 'filename': base})
+    
+    try:
+        f.save(save_path)
+        file_size = os.path.getsize(save_path)
+        file_type = get_file_type(final_name)
+        
+        file_url = f"/uploads/{final_name}"
+        return jsonify({
+            'url': file_url,
+            'filename': base,
+            'type': file_type,
+            'size': file_size
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore upload: {str(e)}'}), 500
 
 
 # ========================================
@@ -909,4 +1007,6 @@ if __name__ == '__main__':
     print(f"📊 Admin: admin / admin123")
     print(f"⭐ Sistema recensioni: attivo")
     print(f"💬 Sistema commenti: attivo")
+    print(f"🗑️ Eliminazione account: attivo")
+    print(f"🎥 Upload video: attivo")
     app.run(host='0.0.0.0', port=port, debug=debug)
