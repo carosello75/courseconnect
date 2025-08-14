@@ -57,8 +57,28 @@
     .post-card{margin-bottom:1.5rem;padding:1.5rem}
     .user-avatar{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;color:#fff;margin-right:1rem}
     .post-content{font-size:1rem;line-height:1.6;margin:1rem 0}
-    .post-actions{display:flex;gap:1rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color)}
-    .action-btn{background:none;border:none;color:var(--text-muted);padding:.5rem 1rem;border-radius:8px;transition:all .3s ease;cursor:pointer}
+    .post-actions{
+      display:flex;
+      gap:1rem;
+      margin-top:1rem;
+      padding-top:1rem;
+      border-top:1px solid var(--border-color);
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .action-btn{
+      background:none;
+      border:none;
+      color:var(--text-muted);
+      padding:.5rem 1rem;
+      border-radius:8px;
+      transition:all .3s ease;
+      cursor:pointer;
+      white-space:nowrap;
+      flex-shrink:0;
+      display:inline-flex;
+      align-items:center;
+    }
     .action-btn:hover{color:var(--primary-color);background:rgba(102,126,234,.1)}
     .action-btn.liked{color:var(--danger-color)}
     .action-btn.text-danger{color:var(--danger-color)!important}
@@ -71,28 +91,59 @@
     .post-content pre code{display:block;padding:1rem;border-radius:12px}
     .post-content pre{background:rgba(0,0,0,.35);border:1px solid var(--border-color)}
     
-    /* 🔧 FIX IMMAGINI NEI POST - PROBLEMA RISOLTO! */
+    /* 🔧 FIX IMMAGINI E CONTENUTI - PROBLEMA LAYOUT RISOLTO! */
     .post-content img{
       max-width:100%!important;
+      width:auto!important;
       height:auto!important;
       border-radius:12px;
       margin:1rem 0;
       box-shadow:0 4px 12px rgba(0,0,0,.3);
       display:block;
+      object-fit:cover;
     }
     .post-content p img{
       margin:0.5rem 0;
     }
     
-    /* 💬 COMMENTI STYLES - NUOVO SISTEMA */
+    /* 🔧 CONTENIMENTO GENERALE - FORZA TUTTO A STARE NEI CONTAINER */
+    .post-card{
+      overflow:hidden;
+      word-wrap:break-word;
+      word-break:break-word;
+    }
+    .post-content{
+      overflow-wrap:break-word;
+      word-break:break-word;
+      max-width:100%;
+    }
+    .post-content *{
+      max-width:100%;
+      box-sizing:border-box;
+    }
+    .post-content pre{
+      overflow-x:auto;
+      max-width:100%;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+    }
+    .post-content code{
+      word-wrap:break-word;
+      white-space:pre-wrap;
+    }
+    
+    /* 💬 COMMENTI STYLES - SISTEMA LAYOUT FISSO */
     .comments-section{
       margin-top:1rem;
       padding-top:1rem;
       border-top:1px solid var(--border-color);
+      overflow:hidden;
+      word-wrap:break-word;
     }
     .comment-item{
       padding:0.75rem 0;
       border-bottom:1px solid rgba(255,255,255,.05);
+      overflow:hidden;
     }
     .comment-item:last-child{
       border-bottom:none;
@@ -100,6 +151,8 @@
     .comment-avatar{
       width:32px;
       height:32px;
+      min-width:32px;
+      min-height:32px;
       border-radius:50%;
       display:flex;
       align-items:center;
@@ -114,6 +167,9 @@
       font-size:0.9rem;
       line-height:1.4;
       margin-bottom:0.25rem;
+      word-wrap:break-word;
+      overflow-wrap:break-word;
+      max-width:100%;
     }
     .comment-meta{
       font-size:0.75rem;
@@ -121,6 +177,7 @@
       display:flex;
       align-items:center;
       gap:0.5rem;
+      flex-wrap:wrap;
     }
     .comment-author{
       font-weight:600;
@@ -132,6 +189,7 @@
       background:rgba(255,255,255,.02);
       border-radius:12px;
       border:1px dashed var(--border-color);
+      overflow:hidden;
     }
     .comment-input{
       background:rgba(45,45,45,.8);
@@ -142,6 +200,9 @@
       font-size:0.9rem;
       resize:vertical;
       min-height:60px;
+      width:100%;
+      max-width:100%;
+      box-sizing:border-box;
     }
     .comment-input:focus{
       background:rgba(45,45,45,.95);
@@ -162,6 +223,7 @@
       font-weight:600;
       cursor:pointer;
       transition:all .2s ease;
+      white-space:nowrap;
     }
     .comment-btn:hover{
       background:var(--secondary-color);
@@ -181,6 +243,7 @@
       border-radius:4px;
       cursor:pointer;
       transition:background .2s ease;
+      white-space:nowrap;
     }
     .comment-delete:hover{
       background:rgba(255,107,107,.1);
@@ -192,6 +255,7 @@
       font-size:0.85rem;
       cursor:pointer;
       transition:color .2s ease;
+      white-space:nowrap;
     }
     .comments-toggle:hover{
       color:var(--primary-color);
@@ -219,11 +283,42 @@
     .rating-star:hover,.rating-star.active{color:#ffd700}
     
     @media (max-width:991.98px){.navbar .navbar-collapse{background:rgba(26,26,26,.98);border:1px solid var(--border-color);border-radius:12px;padding:.5rem 1rem;margin-top:.75rem}.navbar-nav .nav-link{padding:.5rem 0}}
-    @media (max-width:768px){.hero-title{font-size:2.5rem}.hero-subtitle{font-size:1rem}.post-card{padding:1rem}.testimonials-section{padding:2rem 0}.testimonial-card{padding:1.5rem}.comment-form{padding:0.75rem}.comment-input{min-height:50px}}
+    @media (max-width:768px){
+      .hero-title{font-size:2.5rem}
+      .hero-subtitle{font-size:1rem}
+      .post-card{padding:1rem;overflow:hidden}
+      .testimonials-section{padding:2rem 0}
+      .testimonial-card{padding:1.5rem}
+      .comment-form{padding:0.75rem}
+      .comment-input{min-height:50px}
+      .post-actions{gap:0.5rem;flex-wrap:wrap}
+      .action-btn{padding:0.4rem 0.8rem;font-size:0.8rem}
+      .post-content img{margin:0.5rem 0}
+      .comment-meta{flex-wrap:wrap;gap:0.25rem}
+    }
     .fade-in{animation:fadeIn .6s ease-in}
     @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
     .slide-up{animation:slideUp .4s ease-out}
     @keyframes slideUp{from{transform:translateY(100px);opacity:0}to{transform:translateY(0);opacity:1}}
+    
+    /* 🛡️ CONTENIMENTO GLOBALE - IMPEDISCE OVERFLOW */
+    .container, .container-fluid{
+      overflow-x:hidden;
+    }
+    .glass-card{
+      overflow:hidden;
+      word-wrap:break-word;
+    }
+    .col-lg-8, .col-lg-4{
+      overflow-x:hidden;
+    }
+    *{
+      max-width:100%;
+      box-sizing:border-box;
+    }
+    .d-flex{
+      flex-wrap:wrap;
+    }
   </style>
 </head>
 <body>
