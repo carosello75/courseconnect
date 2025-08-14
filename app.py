@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti  
-# app.py - Backend Flask con Sistema Recensioni
+# app.py - Backend Flask con Sistema Recensioni E COMMENTI
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
@@ -160,7 +160,8 @@ class Comment(db.Model):
             'id': self.id,
             'content': self.content,
             'created_at': (self.created_at or datetime.utcnow()).isoformat(),
-            'author': self.author.to_dict() if self.author else {}
+            'author': self.author.to_dict() if self.author else {},
+            'post_id': self.post_id
         }
 
 
@@ -336,6 +337,7 @@ def health_check():
             'database': 'connected',
             'users_count': User.query.count(),
             'posts_count': Post.query.count(),
+            'comments_count': Comment.query.count(),
             'reviews_count': Review.query.count(),
             'timestamp': datetime.utcnow().isoformat()
         })
@@ -353,6 +355,7 @@ def init_database():
             'message': 'Database inizializzato/aggiornato con successo!',
             'users_count': User.query.count(),
             'posts_count': Post.query.count(),
+            'comments_count': Comment.query.count(),
             'reviews_count': Review.query.count(),
             'timestamp': datetime.utcnow().isoformat()
         })
@@ -592,6 +595,144 @@ def delete_post(post_id):
         return jsonify({'error': f'Errore eliminazione post: {str(e)}'}), 500
 
 
+# ======= 🆕 COMMENTI API - NUOVE FUNZIONALITÀ =======
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
+def get_comments(post_id):
+    """Ottieni tutti i commenti di un post specifico"""
+    try:
+        post = db.session.get(Post, post_id)
+        if not post:
+            return jsonify({'error': 'Post non trovato'}), 404
+
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)  # Molti commenti per pagina
+        
+        # Ordina commenti dal più vecchio al più nuovo (conversazione cronologica)
+        comments_query = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.asc())
+        
+        # Paginazione per post con molti commenti
+        comments = comments_query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        return jsonify({
+            'comments': [comment.to_dict() for comment in comments.items],
+            'total': comments.total,
+            'page': page,
+            'has_next': comments.has_next,
+            'has_prev': comments.has_prev,
+            'post_id': post_id
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento commenti: {str(e)}'}), 500
+
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def create_comment(post_id):
+    """Crea nuovo commento su un post (richiede login)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto per commentare'}), 401
+
+        post = db.session.get(Post, post_id)
+        if not post:
+            return jsonify({'error': 'Post non trovato'}), 404
+
+        data = _payload()
+        content = (data.get('content') or '').strip()
+        
+        if not content:
+            return jsonify({'error': 'Contenuto del commento richiesto'}), 400
+        if len(content) > 1000:
+            return jsonify({'error': 'Commento troppo lungo (max 1000 caratteri)'}), 400
+
+        comment = Comment(
+            content=content,
+            user_id=user.id,
+            post_id=post_id
+        )
+        db.session.add(comment)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Commento aggiunto con successo',
+            'comment': comment.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore creazione commento: {str(e)}'}), 500
+
+
+@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
+def delete_comment(comment_id):
+    """Elimina commento (solo l'autore o admin può eliminare)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        comment = db.session.get(Comment, comment_id)
+        if not comment:
+            return jsonify({'error': 'Commento non trovato'}), 404
+
+        # Solo l'autore del commento o admin possono eliminare
+        if comment.user_id != user.id and not user.is_admin:
+            return jsonify({'error': 'Non hai i permessi per eliminare questo commento'}), 403
+
+        # Elimina il commento
+        db.session.delete(comment)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Commento eliminato con successo',
+            'deleted_comment_id': comment_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore eliminazione commento: {str(e)}'}), 500
+
+
+@app.route('/api/comments/<int:comment_id>', methods=['PUT'])
+def update_comment(comment_id):
+    """Modifica commento (solo l'autore può modificare entro 10 minuti)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        comment = db.session.get(Comment, comment_id)
+        if not comment:
+            return jsonify({'error': 'Commento non trovato'}), 404
+
+        # Solo l'autore può modificare
+        if comment.user_id != user.id:
+            return jsonify({'error': 'Non hai i permessi per modificare questo commento'}), 403
+
+        # Controllo tempo limite modifica (10 minuti)
+        time_diff = datetime.utcnow() - comment.created_at
+        if time_diff.total_seconds() > 600:  # 10 minuti
+            return jsonify({'error': 'Tempo scaduto per modificare il commento (max 10 minuti)'}), 403
+
+        data = _payload()
+        content = (data.get('content') or '').strip()
+        
+        if not content:
+            return jsonify({'error': 'Contenuto del commento richiesto'}), 400
+        if len(content) > 1000:
+            return jsonify({'error': 'Commento troppo lungo (max 1000 caratteri)'}), 400
+
+        comment.content = content
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Commento modificato con successo',
+            'comment': comment.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore modifica commento: {str(e)}'}), 500
+
+
 # ======= RECENSIONI API =======
 @app.route('/api/reviews', methods=['GET'])
 def get_reviews():
@@ -767,4 +908,5 @@ if __name__ == '__main__':
     print(f"🚀 CourseConnect avviato su porta {port}")
     print(f"📊 Admin: admin / admin123")
     print(f"⭐ Sistema recensioni: attivo")
+    print(f"💬 Sistema commenti: attivo")
     app.run(host='0.0.0.0', port=port, debug=debug)
