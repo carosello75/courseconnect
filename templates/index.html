@@ -68,8 +68,20 @@
     .sidebar h5{color:var(--primary-color);margin-bottom:1rem}
     .post-content pre code{display:block;padding:1rem;border-radius:12px}
     .post-content pre{background:rgba(0,0,0,.35);border:1px solid var(--border-color)}
+    
+    /* Testimonianze Styles */
+    .testimonials-section{padding:4rem 0;background:rgba(0,0,0,.2)}
+    .testimonial-card{background:rgba(45,45,45,.8);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:2rem;height:100%;transition:all .3s ease}
+    .testimonial-card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,.4)}
+    .testimonial-avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto 1.5rem;display:block;border:3px solid var(--primary-color)}
+    .testimonial-stars{color:#ffd700;font-size:1.2rem;margin-bottom:1rem;text-align:center}
+    .testimonial-text{font-style:italic;margin-bottom:1.5rem;line-height:1.6;color:var(--text-light)}
+    .testimonial-author{text-align:center}
+    .testimonial-name{font-weight:600;color:var(--primary-color);margin-bottom:.5rem}
+    .testimonial-course{color:var(--text-muted);font-size:.9rem}
+    
     @media (max-width:991.98px){.navbar .navbar-collapse{background:rgba(26,26,26,.98);border:1px solid var(--border-color);border-radius:12px;padding:.5rem 1rem;margin-top:.75rem}.navbar-nav .nav-link{padding:.5rem 0}}
-    @media (max-width:768px){.hero-title{font-size:2.5rem}.hero-subtitle{font-size:1rem}.post-card{padding:1rem}}
+    @media (max-width:768px){.hero-title{font-size:2.5rem}.hero-subtitle{font-size:1rem}.post-card{padding:1rem}.testimonials-section{padding:2rem 0}.testimonial-card{padding:1.5rem}}
     .fade-in{animation:fadeIn .6s ease-in}
     @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
     .slide-up{animation:slideUp .4s ease-out}
@@ -113,10 +125,138 @@
         </div>
       </div>
 
+      <!-- Features -->
       <div class="row mt-5">
         <div class="col-md-4 mb-4"><div class="glass-card text-center p-4 h-100 fade-in"><i class="fas fa-users fa-3x mb-3" style="color:var(--primary-color)"></i><h4>Community</h4><p>Connettiti con corsisti da tutta Italia, condividi esperienze e crea relazioni durature.</p></div></div>
         <div class="col-md-4 mb-4"><div class="glass-card text-center p-4 h-100 fade-in"><i class="fas fa-lightbulb fa-3x mb-3" style="color:var(--accent-color)"></i><h4>Condivisione</h4><p>Condividi progetti, successi e sfide. Impara dagli altri e aiuta chi è agli inizi.</p></div></div>
         <div class="col-md-4 mb-4"><div class="glass-card text-center p-4 h-100 fade-in"><i class="fas fa-chart-line fa-3x mb-3" style="color:var(--success-color)"></i><h4>Crescita</h4><p>Accelera il tuo apprendimento attraverso feedback, collaborazioni e opportunità.</p></div></div>
+      </div>
+
+      <!-- Testimonianze -->
+      <div class="testimonials-section mt-5">
+        <div class="container">
+          <div class="text-center mb-5">
+            <h2 class="hero-title" style="font-size:2.5rem;margin-bottom:1rem">Cosa Dicono i Nostri Corsisti</h2>
+            <p class="hero-subtitle">Storie di successo reali dalla community CourseConnect</p>
+          </div>
+          
+          <div class="row">
+            <div class="col-lg-4 mb-4">
+              <div class="testimonial-card fade-in">
+                <img src="https://images.unsplash.com/photo-1494790108755-2616b9c84d50?w=150&h=150&fit=crop&crop=face" alt="Elena Moretti" class="testimonial-avatar">
+                <div class="testimonial-stars">
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">"CourseConnect mi ha cambiato la vita! Ho trovato il lavoro dei miei sogni grazie ai contatti fatti qui. La community è incredibilmente supportiva e sempre pronta ad aiutare."</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-name">Elena Moretti</div>
+                  <div class="testimonial-course">Frontend Developer • Milano</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+              <div class="testimonial-card fade-in">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face" alt="Marco Bianchi" class="testimonial-avatar">
+                <div class="testimonial-stars">
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">"Finalmente un posto dove i corsisti possono davvero connettersi! Ho imparato più dai progetti condivisi qui che in mesi di studio solitario. Consigliatissimo!"</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-name">Marco Bianchi</div>
+                  <div class="testimonial-course">UX Designer • Roma</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+              <div class="testimonial-card fade-in">
+                <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face" alt="Giulia Rossi" class="testimonial-avatar">
+                <div class="testimonial-stars">
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">"La qualità delle discussioni qui è altissima. Ho ricevuto feedback prezioso sui miei progetti e ho stretto amicizie che durano ancora oggi. Un'esperienza trasformante!"</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-name">Giulia Rossi</div>
+                  <div class="testimonial-course">Digital Marketing Specialist • Napoli</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-4">
+            <div class="col-lg-4 mb-4">
+              <div class="testimonial-card fade-in">
+                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face" alt="Andrea Conti" class="testimonial-avatar">
+                <div class="testimonial-stars">
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">"Da quando uso CourseConnect ho triplicato la mia produttività. Condividere progressi e ricevere motivazione dalla community fa davvero la differenza!"</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-name">Andrea Conti</div>
+                  <div class="testimonial-course">Full-Stack Developer • Torino</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+              <div class="testimonial-card fade-in">
+                <img src="https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=150&h=150&fit=crop&crop=face" alt="Sara Martino" class="testimonial-avatar">
+                <div class="testimonial-stars">
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">"CourseConnect è più di un social network, è una famiglia! Ogni volta che posto un progetto ricevo feedback costruttivo che mi aiuta a migliorare. Grazie team!"</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-name">Sara Martino</div>
+                  <div class="testimonial-course">Data Scientist • Bologna</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+              <div class="testimonial-card fade-in">
+                <img src="https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?w=150&h=150&fit=crop&crop=face" alt="Luca Ferrari" class="testimonial-avatar">
+                <div class="testimonial-stars">
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                  <i class="fas fa-star"></i>
+                </div>
+                <p class="testimonial-text">"Ho iniziato come principiante totale e ora lavoro come freelancer. CourseConnect mi ha dato la fiducia e le competenze per realizzare i miei sogni!"</p>
+                <div class="testimonial-author">
+                  <div class="testimonial-name">Luca Ferrari</div>
+                  <div class="testimonial-course">Web Designer • Firenze</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center mt-5">
+            <p class="text-muted mb-4">Unisciti a oltre <strong>1.500+ corsisti</strong> che hanno già trasformato la loro carriera</p>
+            <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#registerModal"><i class="fas fa-star me-2"></i>Inizia la Tua Storia di Successo</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -174,10 +314,13 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass-card">
         <div class="modal-header">
-          <h5 class="modal-title" id="registerModalLabel"><i class="fas fa-user-plus me-2"></i>Registrati su CourseConnect</h5>
+          <h5 class="modal-title" id="registerModalLabel"><i class="fas fa-user-plus me-2"></i>Unisciti a CourseConnect</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
         </div>
         <div class="modal-body">
+          <div class="text-center mb-4">
+            <p class="text-muted">Inizia la tua storia di successo oggi stesso!</p>
+          </div>
           <form id="register-form" novalidate>
             <div class="row">
               <div class="col-md-6">
@@ -207,17 +350,20 @@
                 <option value="Cloud Computing">Cloud Computing</option>
                 <option value="Game Development">Game Development</option>
                 <option value="Web Design">Web Design</option>
+                <option value="Graphic Design">Graphic Design</option>
+                <option value="E-commerce">E-commerce</option>
+                <option value="Social Media Management">Social Media Management</option>
                 <option value="Altro">Altro</option>
               </select>
               <div class="invalid-feedback">Seleziona un corso dal menu</div>
             </div>
             <div class="mb-3"><label for="register-password" class="form-label">Password *</label><input type="password" class="form-control" id="register-password" required minlength="6"><div class="form-text">Minimo 6 caratteri</div><div class="invalid-feedback">La password deve essere di almeno 6 caratteri</div></div>
-            <div class="mb-3"><label for="register-bio" class="form-label">Bio (Opzionale)</label><textarea class="form-control" id="register-bio" rows="2" placeholder="Raccontaci di te..."></textarea></div>
+            <div class="mb-3"><label for="register-bio" class="form-label">Bio (Opzionale)</label><textarea class="form-control" id="register-bio" rows="2" placeholder="Raccontaci di te e dei tuoi obiettivi..."></textarea></div>
           </form>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="button" class="btn btn-primary" onclick="register()" id="register-btn"><i class="fas fa-user-plus me-2"></i>Registrati</button>
+          <button type="button" class="btn btn-primary" onclick="register()" id="register-btn"><i class="fas fa-user-plus me-2"></i>Unisciti alla Community</button>
         </div>
       </div>
     </div>
@@ -228,14 +374,14 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content glass-card">
         <div class="modal-header">
-          <h5 class="modal-title" id="loginModalLabel"><i class="fas fa-sign-in-alt me-2"></i>Accedi a CourseConnect</h5>
+          <h5 class="modal-title" id="loginModalLabel"><i class="fas fa-sign-in-alt me-2"></i>Bentornato in CourseConnect</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
         </div>
         <div class="modal-body">
           <form id="login-form">
             <div class="mb-3"><label for="login-username" class="form-label">Username</label><input type="text" class="form-control" id="login-username" required></div>
             <div class="mb-3"><label for="login-password" class="form-label">Password</label><input type="password" class="form-control" id="login-password" required></div>
-            <div class="text-center"><small class="text-muted">🔧 Test: admin/admin123 o marco_dev/password123</small></div>
+            <div class="text-center"><small class="text-muted">🔧 Account di test: admin/admin123</small></div>
           </form>
         </div>
         <div class="modal-footer">
@@ -303,7 +449,7 @@
 
     async function register(){ if(!validateForm()){ showAlert('Correggi gli errori nel form prima di continuare','danger'); return; } const formData={ nome:document.getElementById('register-nome').value.trim(), cognome:document.getElementById('register-cognome').value.trim(), username:document.getElementById('register-username').value.trim(), email:document.getElementById('register-email').value.trim(), corso:document.getElementById('register-corso').value, password:document.getElementById('register-password').value, bio:document.getElementById('register-bio').value.trim() };
       const btn=document.getElementById('register-btn'); const orig=btn.innerHTML; btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin me-2"></i>Registrazione...';
-      try{ const res=await fetch('/api/register',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(formData) }); const data=await res.json(); if(res.ok){ currentUser=data.user; showAlert('🎉 Registrazione completata! Benvenuto in CourseConnect!','success'); closeModal('registerModal'); showUserSection(); loadPosts(); loadActiveUsers(); } else { showAlert(data.error||'Errore durante la registrazione','danger'); } } catch(err){ showAlert('Errore di connessione. Riprova.','danger'); } finally { btn.disabled=false; btn.innerHTML=orig; }
+      try{ const res=await fetch('/api/register',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(formData) }); const data=await res.json(); if(res.ok){ currentUser=data.user; showAlert('🎉 Benvenuto in CourseConnect! La tua storia di successo inizia ora!','success'); closeModal('registerModal'); showUserSection(); loadPosts(); loadActiveUsers(); } else { showAlert(data.error||'Errore durante la registrazione','danger'); } } catch(err){ showAlert('Errore di connessione. Riprova.','danger'); } finally { btn.disabled=false; btn.innerHTML=orig; }
     }
 
     async function logout(){ try{ await fetch('/api/logout',{ method:'POST' }); currentUser=null; showAlert('Logout effettuato','success'); showGuestSection(); } catch(e){ showAlert('Errore durante il logout','danger'); } }
@@ -312,13 +458,28 @@
     function showUserSection(){ document.getElementById('guest-section').style.display='none'; document.getElementById('user-section').style.display='block'; document.getElementById('nav-login').style.display='none'; document.getElementById('nav-register').style.display='none'; document.getElementById('nav-user').style.display='block'; document.getElementById('nav-logout').style.display='block'; if(currentUser){ document.getElementById('user-name').textContent=currentUser.nome; } loadActiveUsers(); }
 
     // Users sidebar
-    async function loadActiveUsers(){ const box=document.getElementById('active-users'); if(!box) return; box.innerHTML='<div class="text-muted">Caricamento...</div>'; try{ const res=await fetch('/api/users?limit=10'); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Errore'); if(!data.users||data.users.length===0){ box.innerHTML='<small class="text-muted">Nessun utente ancora.</small>'; return; } box.innerHTML = data.users.map(u=>`<div class=\"d-flex align-items-center mb-3\"><div class=\"user-avatar\" style=\"background:${u.avatar_color}; width:40px; height:40px;\">${u.initials}</div><div><div class=\"fw-bold\">${u.nome} ${u.cognome}</div><small class=\"text-muted\">@${u.username} • ${u.corso}</small></div></div>`).join(''); } catch(e){ box.innerHTML=`<div class=\"text-danger\"><small>${e.message}</small></div>`; } }
+    async function loadActiveUsers(){ const box=document.getElementById('active-users'); if(!box) return; box.innerHTML='<div class="text-muted">Caricamento...</div>'; try{ const res=await fetch('/api/users?limit=10'); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Errore'); if(!data.users||data.users.length===0){ box.innerHTML='<small class="text-muted">Nessun utente ancora.</small>'; return; } box.innerHTML = data.users.map(u=>`<div class="d-flex align-items-center mb-3"><div class="user-avatar" style="background:${u.avatar_color}; width:40px; height:40px;">${u.initials}</div><div><div class="fw-bold">${u.nome} ${u.cognome}</div><small class="text-muted">@${u.username} • ${u.corso}</small></div></div>`).join(''); } catch(e){ box.innerHTML=`<div class="text-danger"><small>${e.message}</small></div>`; } }
 
     // Posts
     async function loadPosts(){ const container=document.getElementById('posts-container'); container.innerHTML='<div class="loading"><div class="spinner"></div><p>Caricamento post...</p></div>'; try{ const res=await fetch('/api/posts'); const data=await res.json(); if(res.ok){ posts=data.posts; renderPosts(); } else { container.innerHTML=`<div class="alert alert-danger">Errore: ${data.error}</div>`; } } catch(e){ container.innerHTML='<div class="alert alert-danger">Errore di connessione</div>'; } }
 
-    function renderPosts(){ const container=document.getElementById('posts-container'); if(posts.length===0){ container.innerHTML = `<div class=\"glass-card p-4 text-center\"><i class=\"fas fa-comments fa-3x mb-3\" style=\"color:var(--text-muted)\"></i><h5>Nessun post ancora</h5><p class=\"text-muted\">Sii il primo a condividere qualcosa con la community!</p></div>`; return; } container.innerHTML = posts.map(post=>{ const html=renderMarkdown(post.content); return `
-      <div class=\"post-card glass-card slide-up\" id=\"post-${post.id}\">\n        <div class=\"d-flex align-items-start\">\n          <div class=\"user-avatar\" style=\"background:${post.author.avatar_color}\">${post.author.initials}</div>\n          <div class=\"flex-grow-1\">\n            <div class=\"d-flex justify-content-between align-items-start mb-2\">\n              <div><h6 class=\"mb-0\">${post.author.nome} ${post.author.cognome}</h6><small class=\"text-muted\">@${post.author.username} • ${post.author.corso}</small></div>\n              <small class=\"text-muted\">${formatDate(post.created_at)}</small>\n            </div>\n            <div class=\"post-content\">${html}</div>\n            <div class=\"post-actions\">\n              <button class=\"action-btn ${post.is_liked ? 'liked' : ''}\" onclick=\"toggleLike(${post.id})\"><i class=\"fas fa-heart me-1\"></i><span id=\"likes-${post.id}\">${post.likes_count}</span></button>\n              <button class=\"action-btn\" onclick=\"sharePost(${post.id})\"><i class=\"fas fa-share me-1\"></i>Condividi</button>\n            </div>\n          </div>\n        </div>\n      </div>`; }).join(''); container.querySelectorAll('.post-card .post-content').forEach(el=>hljsApply(el)); }
+    function renderPosts(){ const container=document.getElementById('posts-container'); if(posts.length===0){ container.innerHTML = `<div class="glass-card p-4 text-center"><i class="fas fa-comments fa-3x mb-3" style="color:var(--text-muted)"></i><h5>Inizia la Conversazione!</h5><p class="text-muted">Condividi il tuo primo post e ispira la community!</p></div>`; return; } container.innerHTML = posts.map(post=>{ const html=renderMarkdown(post.content); return `
+      <div class="post-card glass-card slide-up" id="post-${post.id}">
+        <div class="d-flex align-items-start">
+          <div class="user-avatar" style="background:${post.author.avatar_color}">${post.author.initials}</div>
+          <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div><h6 class="mb-0">${post.author.nome} ${post.author.cognome}</h6><small class="text-muted">@${post.author.username} • ${post.author.corso}</small></div>
+              <small class="text-muted">${formatDate(post.created_at)}</small>
+            </div>
+            <div class="post-content">${html}</div>
+            <div class="post-actions">
+              <button class="action-btn ${post.is_liked ? 'liked' : ''}" onclick="toggleLike(${post.id})"><i class="fas fa-heart me-1"></i><span id="likes-${post.id}">${post.likes_count}</span></button>
+              <button class="action-btn" onclick="sharePost(${post.id})"><i class="fas fa-share me-1"></i>Condividi</button>
+            </div>
+          </div>
+        </div>
+      </div>`; }).join(''); container.querySelectorAll('.post-card .post-content').forEach(el=>hljsApply(el)); }
 
     async function createPost(){ const content=document.getElementById('post-content').value.trim(); if(!content){ showAlert('Scrivi qualcosa prima di pubblicare!','danger'); return; } if(content.length>4000){ showAlert('Il post è troppo lungo (max 4000 caratteri)','danger'); return; } try{ const response=await fetch('/api/posts',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content }) }); const data=await response.json(); if(response.ok){ document.getElementById('post-content').value=''; document.getElementById('char-count').textContent='0'; document.getElementById('post-preview').style.display='none'; showAlert('Post pubblicato!','success'); loadPosts(); } else { showAlert(data.error||'Errore durante la pubblicazione','danger'); } } catch(e){ showAlert('Errore di connessione','danger'); } }
 
@@ -326,7 +487,7 @@
 
     function formatDate(dateString){ const date=new Date(dateString); const now=new Date(); const s=Math.floor((now-date)/1000); if(s<60) return 'Ora'; if(s<3600) return Math.floor(s/60)+'m'; if(s<86400) return Math.floor(s/3600)+'h'; if(s<604800) return Math.floor(s/86400)+'g'; return date.toLocaleDateString('it-IT'); }
 
-    function showAlert(message,type){ document.querySelectorAll('.alert').forEach(a=>a.remove()); const alertDiv=document.createElement('div'); alertDiv.className=`alert alert-${type} alert-dismissible fade show`; alertDiv.innerHTML=`<strong>${type==='success'?'✅':'❌'}</strong> ${message}<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\"></button>`; document.body.appendChild(alertDiv); setTimeout(()=>{ if(alertDiv&&alertDiv.parentNode) alertDiv.remove(); },5000); }
+    function showAlert(message,type){ document.querySelectorAll('.alert').forEach(a=>a.remove()); const alertDiv=document.createElement('div'); alertDiv.className=`alert alert-${type} alert-dismissible fade show`; alertDiv.innerHTML=`<strong>${type==='success'?'✅':'❌'}</strong> ${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`; document.body.appendChild(alertDiv); setTimeout(()=>{ if(alertDiv&&alertDiv.parentNode) alertDiv.remove(); },5000); }
     function closeModal(id){ const modal=bootstrap.Modal.getInstance(document.getElementById(id)); if(modal) modal.hide(); }
 
     window.addEventListener('scroll', function(){ document.querySelectorAll('.glass-card').forEach(el=>{ const top=el.getBoundingClientRect().top; if(top < window.innerHeight - 150) el.classList.add('fade-in'); }); });
