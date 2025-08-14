@@ -656,6 +656,55 @@ def create_review():
         return jsonify({'error': f'Errore creazione recensione: {str(e)}'}), 500
 
 
+@app.route('/api/reviews/<int:review_id>', methods=['DELETE'])
+def delete_review(review_id):
+    """Elimina recensione (solo l'autore può eliminare)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        review = db.session.get(Review, review_id)
+        if not review:
+            return jsonify({'error': 'Recensione non trovata'}), 404
+
+        # Solo l'autore o admin possono eliminare
+        if review.user_id != user.id and not user.is_admin:
+            return jsonify({'error': 'Non hai i permessi per eliminare questa recensione'}), 403
+
+        # Elimina la recensione
+        db.session.delete(review)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Recensione eliminata con successo',
+            'deleted_review_id': review_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore eliminazione recensione: {str(e)}'}), 500
+
+
+@app.route('/api/reviews/my', methods=['GET'])
+def get_my_review():
+    """Ottieni la recensione dell'utente corrente"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        review = Review.query.filter_by(user_id=user.id).first()
+        if not review:
+            return jsonify({'has_review': False, 'review': None})
+
+        return jsonify({
+            'has_review': True,
+            'review': review.to_dict()
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento recensione: {str(e)}'}), 500
+
+
 # ======= UPLOADS =======
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
