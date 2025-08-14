@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti  
-# app.py - Backend Flask Completo (Senza Utenti Demo)
+# app.py - Backend Flask con Sistema Recensioni
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
@@ -76,6 +76,7 @@ class User(db.Model):
     posts = db.relationship('Post', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     likes = db.relationship('Like', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    reviews = db.relationship('Review', backref='author', lazy='dynamic', cascade='all, delete-orphan')
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -183,6 +184,34 @@ class PostAttachment(db.Model):
 
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
 
+
+# ========================================
+# NUOVO MODELLO: RECENSIONI UTENTI
+# ========================================
+
+class Review(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.Text, nullable=False)
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stelle
+    photo_url = db.Column(db.String(500), nullable=False)
+    location = db.Column(db.String(100), default='')
+    is_approved = db.Column(db.Boolean, default=True)  # Per moderazione futura
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': f"{self.author.nome} {self.author.cognome}",
+            'course': f"{self.author.corso}{' • ' + self.location if self.location else ''}",
+            'text': self.text,
+            'rating': self.rating,
+            'photo': self.photo_url,
+            'created_at': (self.created_at or datetime.utcnow()).isoformat(),
+            'isStatic': False
+        }
+
 # ========================================
 # UTILITY
 # ========================================
@@ -227,6 +256,7 @@ Il social network dedicato ai corsisti è finalmente online! 🚀
 - 📸 **Caricare immagini** nei tuoi post
 - ❤️ **Mettere like** e commentare
 - 🔗 **Creare collegamenti** con la community
+- ⭐ **Lasciare recensioni** per aiutare altri corsisti
 
 **Inizia subito a condividere la tua esperienza di apprendimento!**
 
@@ -306,6 +336,7 @@ def health_check():
             'database': 'connected',
             'users_count': User.query.count(),
             'posts_count': Post.query.count(),
+            'reviews_count': Review.query.count(),
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
@@ -322,6 +353,7 @@ def init_database():
             'message': 'Database inizializzato/aggiornato con successo!',
             'users_count': User.query.count(),
             'posts_count': Post.query.count(),
+            'reviews_count': Review.query.count(),
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
@@ -531,6 +563,70 @@ def toggle_like(post_id):
         return jsonify({'error': f'Errore like: {str(e)}'}), 500
 
 
+# ======= RECENSIONI API =======
+@app.route('/api/reviews', methods=['GET'])
+def get_reviews():
+    """Ottieni tutte le recensioni approvate"""
+    try:
+        reviews = Review.query.filter_by(is_approved=True).order_by(Review.created_at.desc()).all()
+        return jsonify({
+            'reviews': [review.to_dict() for review in reviews],
+            'total': len(reviews)
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento recensioni: {str(e)}'}), 500
+
+
+@app.route('/api/reviews', methods=['POST'])
+def create_review():
+    """Crea nuova recensione (richiede login)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        data = _payload()
+        required = ['text', 'rating', 'photo_url']
+        missing = [k for k in required if not data.get(k)]
+        if missing:
+            return jsonify({'error': 'Tutti i campi obbligatori richiesti', 'missing_fields': missing}), 400
+
+        text = data['text'].strip()
+        rating = int(data['rating'])
+        photo_url = data['photo_url']
+        location = (data.get('location') or '').strip()
+
+        if not text or len(text) > 500:
+            return jsonify({'error': 'Testo recensione richiesto (max 500 caratteri)'}), 400
+        if rating < 1 or rating > 5:
+            return jsonify({'error': 'Rating deve essere tra 1 e 5 stelle'}), 400
+
+        # Controlla se l'utente ha già lasciato una recensione
+        existing_review = Review.query.filter_by(user_id=user.id).first()
+        if existing_review:
+            return jsonify({'error': 'Hai già lasciato una recensione'}), 400
+
+        review = Review(
+            text=text,
+            rating=rating,
+            photo_url=photo_url,
+            location=location,
+            user_id=user.id
+        )
+        db.session.add(review)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Recensione pubblicata con successo!',
+            'review': review.to_dict()
+        })
+    except ValueError:
+        return jsonify({'error': 'Rating deve essere un numero valido'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore creazione recensione: {str(e)}'}), 500
+
+
 # ======= UPLOADS =======
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
@@ -592,4 +688,5 @@ if __name__ == '__main__':
     debug = os.environ.get('FLASK_ENV') == 'development'
     print(f"🚀 CourseConnect avviato su porta {port}")
     print(f"📊 Admin: admin / admin123")
+    print(f"⭐ Sistema recensioni: attivo")
     app.run(host='0.0.0.0', port=port, debug=debug)
