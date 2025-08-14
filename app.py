@@ -563,6 +563,35 @@ def toggle_like(post_id):
         return jsonify({'error': f'Errore like: {str(e)}'}), 500
 
 
+@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
+def delete_post(post_id):
+    """Elimina post (solo l'autore può eliminare)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        post = db.session.get(Post, post_id)
+        if not post:
+            return jsonify({'error': 'Post non trovato'}), 404
+
+        # Solo l'autore o admin possono eliminare
+        if post.user_id != user.id and not user.is_admin:
+            return jsonify({'error': 'Non hai i permessi per eliminare questo post'}), 403
+
+        # Elimina il post (cascade eliminerà automaticamente like e commenti)
+        db.session.delete(post)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Post eliminato con successo',
+            'deleted_post_id': post_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore eliminazione post: {str(e)}'}), 500
+
+
 # ======= RECENSIONI API =======
 @app.route('/api/reviews', methods=['GET'])
 def get_reviews():
