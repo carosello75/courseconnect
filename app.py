@@ -1,1748 +1,1982 @@
-# ========================================
-# CourseConnect - Social Network per Corsisti  
-# app.py - Backend Flask con Sistema Completo + Notifiche Real-time
-# ========================================
+# ======================================== 
+# CourseConnect - Social Network per Corsisti 
+# app.py - Backend Flask con Sistema Completo + Corsi Full LMS
+# ======================================== 
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from datetime import datetime
-import os, json
-
-# ========================================
-# FLASK APP & CONFIG
-# ========================================
+from datetime import datetime, timedelta
+import hashlib
+import os
+import secrets
+import uuid
 
 app = Flask(__name__)
-
-# Secret key (in produzione sovrascrivi con env var)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'courseconnect-secret-key-2024')
-
-# --- DATABASE_URL ---
-# Default: SQLite in path ASSOLUTO nella working dir (evita "readonly database" su Render)
-default_sqlite_path = os.path.join(os.getcwd(), 'courseconnect.db')
-db_url = os.environ.get('DATABASE_URL', f'sqlite:///{default_sqlite_path}')
-
-# Render Postgres spesso usa "postgres://", SQLAlchemy vuole "postgresql+psycopg2://"
-if db_url.startswith('postgres://'):
-    db_url = db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SECRET_KEY'] = 'courseconnect-super-secret-key-2024'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///courseconnect.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Engine options (pool, keep-alive)
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = app.config.get('SQLALCHEMY_ENGINE_OPTIONS', {})
-app.config['SQLALCHEMY_ENGINE_OPTIONS'].update({
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-})
-
-# SQLite + worker async: disabilita check_same_thread
-if db_url.startswith('sqlite'):
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'].setdefault('connect_args', {})['check_same_thread'] = False
-
-# Cookie di sessione più sicuri (su Render è HTTPS)
-app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
-app.config.setdefault('SESSION_COOKIE_SECURE', True)
-
-# Uploads (immagini + video) - FIX COMPLETO
-UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'static', 'uploads'))
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'}
-MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-# Crea anche la cartella video
-VIDEO_FOLDER = os.path.join(UPLOAD_FOLDER, 'videos')
-os.makedirs(VIDEO_FOLDER, exist_ok=True)
-
+# Upload configuration
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', 'flv'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
-print(f"📁 Upload folder: {UPLOAD_FOLDER}")
-print(f"🎥 Video folder: {VIDEO_FOLDER}")
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 db = SQLAlchemy(app)
 
-# ========================================
-# MODELLI DATABASE
-# ========================================
+# ======================================== 
+# DATABASE MODELS 
+# ======================================== 
+
+def generate_avatar_color():
+    """Genera un colore avatar casuale"""
+    colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140', '#ff6b6b']
+    return secrets.choice(colors)
+
+def get_initials(nome, cognome):
+    """Genera iniziali da nome e cognome"""
+    return f"{nome[0].upper()}{cognome[0].upper()}" if nome and cognome else "XX"
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False)
     nome = db.Column(db.String(100), nullable=False)
     cognome = db.Column(db.String(100), nullable=False)
     corso = db.Column(db.String(200), nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    bio = db.Column(db.Text, default='')
-    avatar_url = db.Column(db.String(500), default='')
-    is_active = db.Column(db.Boolean, default=True)
+    bio = db.Column(db.Text)
+    avatar_color = db.Column(db.String(7), default=generate_avatar_color)
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    posts = db.relationship('Post', backref='author', lazy='dynamic', cascade='all, delete-orphan')
-    comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')
-    likes = db.relationship('Like', backref='user', lazy='dynamic', cascade='all, delete-orphan')
-    reviews = db.relationship('Review', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     
-    # Course relationships
-    taught_courses = db.relationship('Course', backref='instructor', lazy='dynamic')
-    enrollments = db.relationship('Enrollment', backref='student', lazy='dynamic', cascade='all, delete-orphan')
-    lesson_progress = db.relationship('LessonProgress', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    # Relationships
+    posts = db.relationship('Post', backref='author', lazy=True, cascade='all, delete-orphan')
+    comments = db.relationship('Comment', backref='author', lazy=True, cascade='all, delete-orphan')
+    likes = db.relationship('Like', backref='user', lazy=True, cascade='all, delete-orphan')
+    reviews = db.relationship('Review', backref='author', lazy=True, cascade='all, delete-orphan')
     
-    # Notification relationships
-    sent_notifications = db.relationship('Notification', foreign_keys='Notification.from_user_id', backref='sender', lazy='dynamic', cascade='all, delete-orphan')
-    received_notifications = db.relationship('Notification', foreign_keys='Notification.to_user_id', backref='recipient', lazy='dynamic', cascade='all, delete-orphan')
-
-    def set_password(self, password: str):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password: str) -> bool:
-        return check_password_hash(self.password_hash, password)
-
-    def get_avatar_color(self):
-        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F']
-        return colors[len(self.username) % len(colors)]
-
-    def get_initials(self):
-        return f"{self.nome[0]}{self.cognome[0]}".upper() if self.nome and self.cognome else self.username[0].upper()
-
-    def get_unread_notifications_count(self):
-        return self.received_notifications.filter_by(is_read=False).count()
-
-    def to_dict(self):
-        # Calcola statistiche corsi
-        enrolled_courses = self.enrollments.count()
-        taught_courses = self.taught_courses.count()
-        
-        # Calcola progresso medio dei corsi iscritti
-        total_progress = 0
-        active_enrollments = self.enrollments.filter_by(is_active=True).all()
-        
-        if active_enrollments:
-            for enrollment in active_enrollments:
-                course_progress = enrollment.course.get_user_progress(self.id)
-                total_progress += course_progress
-            avg_progress = total_progress / len(active_enrollments)
-        else:
-            avg_progress = 0
-        
-        return {
-            'id': self.id,
-            'username': self.username,
-            'nome': self.nome,
-            'cognome': self.cognome,
-            'corso': self.corso,
-            'bio': self.bio,
-            'avatar_url': self.avatar_url,
-            'avatar_color': self.get_avatar_color(),
-            'initials': self.get_initials(),
-            'is_admin': self.is_admin,
-            'enrolled_courses': enrolled_courses,
-            'taught_courses': taught_courses,
-            'avg_progress': round(avg_progress, 1),
-            'unread_notifications': self.get_unread_notifications_count(),
-            'created_at': (self.created_at or datetime.utcnow()).isoformat()
-        }
-
+    # 🔔 Notifiche relationships
+    sent_notifications = db.relationship('Notification', foreign_keys='Notification.sender_id', backref='sender', lazy='dynamic', cascade='all, delete-orphan')
+    received_notifications = db.relationship('Notification', foreign_keys='Notification.recipient_id', backref='recipient', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # 🎓 Corsi relationships - NUOVO
+    enrollments = db.relationship('Enrollment', backref='student', lazy=True, cascade='all, delete-orphan')
+    lesson_progress = db.relationship('LessonProgress', backref='student', lazy=True, cascade='all, delete-orphan')
+    
+    @property
+    def initials(self):
+        return get_initials(self.nome, self.cognome)
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Media files
     image_filename = db.Column(db.String(255))
     video_filename = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
-    likes = db.relationship('Like', backref='post', lazy='dynamic', cascade='all, delete-orphan')
-
-    def get_likes_count(self):
-        return self.likes.count()
-
-    def is_liked_by(self, user):
-        if not user:
-            return False
-        return self.likes.filter_by(user_id=user.id).first() is not None
-
-    def to_dict(self, current_user=None):
-        return {
-            'id': self.id,
-            'content': self.content,
-            'image_filename': self.image_filename,
-            'video_filename': self.video_filename,
-            'created_at': (self.created_at or datetime.utcnow()).isoformat(),
-            'author': self.author.to_dict() if self.author else {},
-            'likes_count': self.get_likes_count(),
-            'is_liked': self.is_liked_by(current_user),
-            'comments_count': self.comments.count(),
-            'user_can_delete': current_user and (current_user.id == self.user_id or current_user.is_admin)
-        }
-
+    
+    # Relationships
+    comments = db.relationship('Comment', backref='post', lazy=True, cascade='all, delete-orphan')
+    likes = db.relationship('Like', backref='post', lazy=True, cascade='all, delete-orphan')
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'content': self.content,
-            'created_at': (self.created_at or datetime.utcnow()).isoformat(),
-            'author': self.author.to_dict() if self.author else {},
-            'post_id': self.post_id,
-            'user_can_delete': True  # Will be updated by frontend logic
-        }
-
 
 class Like(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
-
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
-
 
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text, nullable=False)
-    rating = db.Column(db.Integer, nullable=False)  # 1-5 stelle
-    photo_url = db.Column(db.String(500), nullable=False)
-    location = db.Column(db.String(100), default='')
-    is_approved = db.Column(db.Boolean, default=True)  # Per moderazione futura
+    rating = db.Column(db.Integer, nullable=False)
+    location = db.Column(db.String(100))
+    photo_url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': f"{self.author.nome} {self.author.cognome}",
-            'course': f"{self.author.corso}{' • ' + self.location if self.location else ''}",
-            'text': self.text,
-            'rating': self.rating,
-            'photo': self.photo_url,
-            'created_at': (self.created_at or datetime.utcnow()).isoformat(),
-            'isStatic': False
-        }
-
-
-# ========================================
-# MODELLI CORSI E SISTEMA APPRENDIMENTO
-# ========================================
-
-class Course(db.Model):
-    """Modello per i corsi"""
+class DeletedAccount(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    category = db.Column(db.String(100), nullable=False)  # Web Design, SEO, WordPress, etc.
-    course_type = db.Column(db.String(50), default='CORSI')  # CORSI, TRAINING
-    thumbnail_url = db.Column(db.String(500))
-    is_private = db.Column(db.Boolean, default=False)
-    price = db.Column(db.Float, default=0.0)
-    duration_hours = db.Column(db.Integer, default=0)
-    skill_level = db.Column(db.String(50), default='Beginner')  # Beginner, Intermediate, Advanced
-    instructor_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    lessons = db.relationship('Lesson', backref='course', lazy='dynamic', cascade='all, delete-orphan')
-    enrollments = db.relationship('Enrollment', backref='course', lazy='dynamic', cascade='all, delete-orphan')
-    
-    def get_total_lessons(self):
-        return self.lessons.count()
-    
-    def get_user_progress(self, user_id):
-        if not user_id:
-            return 0
-        enrollment = Enrollment.query.filter_by(user_id=user_id, course_id=self.id).first()
-        if not enrollment:
-            return 0
-        
-        total_lessons = self.get_total_lessons()
-        if total_lessons == 0:
-            return 0
-            
-        completed_lessons = LessonProgress.query.join(Lesson).filter(
-            Lesson.course_id == self.id,
-            LessonProgress.user_id == user_id,
-            LessonProgress.is_completed == True
-        ).count()
-        
-        return round((completed_lessons / total_lessons) * 100)
-    
-    def to_dict(self, current_user=None):
-        user_progress = 0
-        is_enrolled = False
-        
-        if current_user:
-            user_progress = self.get_user_progress(current_user.id)
-            is_enrolled = Enrollment.query.filter_by(
-                user_id=current_user.id, 
-                course_id=self.id
-            ).first() is not None
-        
-        return {
-            'id': self.id,
-            'title': self.title,
-            'description': self.description,
-            'category': self.category,
-            'course_type': self.course_type,
-            'thumbnail_url': self.thumbnail_url,
-            'is_private': self.is_private,
-            'price': self.price,
-            'duration_hours': self.duration_hours,
-            'skill_level': self.skill_level,
-            'total_lessons': self.get_total_lessons(),
-            'user_progress': user_progress,
-            'is_enrolled': is_enrolled,
-            'instructor': self.instructor.to_dict() if self.instructor else None,
-            'created_at': (self.created_at or datetime.utcnow()).isoformat()
-        }
+    username = db.Column(db.String(80), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    deletion_reason = db.Column(db.String(200))
+    feedback = db.Column(db.Text)
+    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-
-class Lesson(db.Model):
-    """Lezioni di un corso"""
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    content = db.Column(db.Text)  # Contenuto markdown
-    video_url = db.Column(db.String(500))
-    order_index = db.Column(db.Integer, default=0)
-    duration_minutes = db.Column(db.Integer, default=0)
-    is_free = db.Column(db.Boolean, default=False)  # Lezione gratuita
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships  
-    progress = db.relationship('LessonProgress', backref='lesson', lazy='dynamic', cascade='all, delete-orphan')
-    
-    def to_dict(self, current_user=None):
-        user_completed = False
-        if current_user:
-            progress = LessonProgress.query.filter_by(
-                user_id=current_user.id,
-                lesson_id=self.id
-            ).first()
-            user_completed = progress.is_completed if progress else False
-        
-        return {
-            'id': self.id,
-            'title': self.title,
-            'description': self.description,
-            'content': self.content,
-            'video_url': self.video_url,
-            'order_index': self.order_index,
-            'duration_minutes': self.duration_minutes,
-            'is_free': self.is_free,
-            'course_id': self.course_id,
-            'user_completed': user_completed,
-            'created_at': (self.created_at or datetime.utcnow()).isoformat()
-        }
-
-
-class Enrollment(db.Model):
-    """Iscrizioni degli utenti ai corsi"""
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
-    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime)
-    is_active = db.Column(db.Boolean, default=True)
-    
-    __table_args__ = (db.UniqueConstraint('user_id', 'course_id', name='unique_user_course_enrollment'),)
-
-
-class LessonProgress(db.Model):
-    """Progresso delle lezioni"""
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
-    is_completed = db.Column(db.Boolean, default=False)
-    completed_at = db.Column(db.DateTime)
-    watch_time_seconds = db.Column(db.Integer, default=0)
-    last_position_seconds = db.Column(db.Integer, default=0)
-
-
-# ========================================
-# SISTEMA NOTIFICHE
-# ========================================
-
+# 🔔 Modello Notifiche
 class Notification(db.Model):
-    """Modello per le notifiche"""
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(50), nullable=False)  # like, comment, course_enrollment, etc.
     title = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    data = db.Column(db.Text)  # JSON data extra (post_id, course_id, etc.)
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Chi invia e chi riceve la notifica
-    from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Nullable per notifiche di sistema
-    to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # Foreign Keys
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
-    def to_dict(self):
-        # Parse JSON data se presente
-        extra_data = {}
-        if self.data:
-            try:
-                extra_data = json.loads(self.data)
-            except:
-                pass
-        
-        return {
-            'id': self.id,
-            'type': self.type,
-            'title': self.title,
-            'message': self.message,
-            'data': extra_data,
-            'is_read': self.is_read,
-            'created_at': self.created_at.isoformat(),
-            'sender': self.sender.to_dict() if self.sender else None,
-            'time_ago': self.get_time_ago()
-        }
-    
-    def get_time_ago(self):
-        """Calcola tempo relativo"""
-        now = datetime.utcnow()
-        diff = now - self.created_at
-        
-        if diff.seconds < 60:
-            return "Ora"
-        elif diff.seconds < 3600:
-            return f"{diff.seconds // 60}m fa"
-        elif diff.seconds < 86400:
-            return f"{diff.seconds // 3600}h fa"
-        elif diff.days < 7:
-            return f"{diff.days}g fa"
-        else:
-            return self.created_at.strftime("%d/%m/%Y")
+    # Optional reference IDs
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
 
-
-class DeletedAccount(db.Model):
-    """Modello per tracciare account eliminati e feedback"""
+# 🎓 Modelli Corsi - ESISTENTE (modificato)
+class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), nullable=False)
-    email = db.Column(db.String(120), nullable=False)
-    deletion_reason = db.Column(db.String(500))
-    feedback = db.Column(db.Text)
-    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(100), nullable=False)
+    course_type = db.Column(db.String(50), default='CORSI')  # CORSI, TRAINING
+    skill_level = db.Column(db.String(50), nullable=False)  # Beginner, Intermediate, Advanced
+    duration_hours = db.Column(db.Integer, default=0)
+    thumbnail_url = db.Column(db.String(500))
+    price = db.Column(db.Float, default=0.0)
+    is_private = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Instructor (admin who created the course)
+    instructor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    instructor = db.relationship('User', backref='taught_courses', foreign_keys=[instructor_id])
+    
+    # 🎓 NUOVO: Relationships per il sistema completo
+    lessons = db.relationship('Lesson', backref='course', lazy=True, cascade='all, delete-orphan', order_by='Lesson.order_index')
+    enrollments = db.relationship('Enrollment', backref='course', lazy=True, cascade='all, delete-orphan')
 
+# 🎓 NUOVO: Modello Lezioni
+class Lesson(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text)  # Contenuto markdown della lezione
+    order_index = db.Column(db.Integer, nullable=False)  # Ordine nella sequenza
+    duration_minutes = db.Column(db.Integer, default=10)  # Durata stimata in minuti
+    is_free = db.Column(db.Boolean, default=False)  # Prima lezione sempre gratuita
+    video_url = db.Column(db.String(500))  # URL video opzionale
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Foreign Key
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    
+    # Relationships
+    progress_records = db.relationship('LessonProgress', backref='lesson', lazy=True, cascade='all, delete-orphan')
 
-# ========================================
-# UTILITY FUNCTIONS PER NOTIFICHE
-# ========================================
+# 🎓 NUOVO: Modello Iscrizioni Corsi
+class Enrollment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    progress_percentage = db.Column(db.Float, default=0.0)
+    
+    # Foreign Keys
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('user_id', 'course_id', name='unique_user_course_enrollment'),)
 
-def create_notification(from_user_id, to_user_id, notification_type, title, message, extra_data=None):
+# 🎓 NUOVO: Modello Progresso Lezioni
+class LessonProgress(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    time_spent_minutes = db.Column(db.Integer, default=0)
+    
+    # Foreign Keys
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('user_id', 'lesson_id', name='unique_user_lesson_progress'),)
+
+# ======================================== 
+# UTILITY FUNCTIONS 
+# ======================================== 
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def get_current_user():
+    """Ottieni l'utente corrente dalla sessione"""
+    if 'user_id' in session:
+        return User.query.get(session['user_id'])
+    return None
+
+def require_auth():
+    """Decorator per richiedere autenticazione"""
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Autenticazione richiesta'}), 401
+    return user
+
+def require_admin():
+    """Decorator per richiedere permessi admin"""
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Autenticazione richiesta'}), 401
+    if not user.is_admin:
+        return jsonify({'error': 'Permessi amministratore richiesti'}), 403
+    return user
+
+# 🔔 Funzioni Notifiche
+def create_notification(recipient_id, notification_type, title, message, sender_id=None, post_id=None, comment_id=None, course_id=None):
     """Crea una nuova notifica"""
     try:
-        # Non creare notifiche a se stessi
-        if from_user_id == to_user_id:
-            return None
-        
         notification = Notification(
-            from_user_id=from_user_id,
-            to_user_id=to_user_id,
             type=notification_type,
             title=title,
             message=message,
-            data=json.dumps(extra_data) if extra_data else None
+            recipient_id=recipient_id,
+            sender_id=sender_id,
+            post_id=post_id,
+            comment_id=comment_id,
+            course_id=course_id
         )
-        
         db.session.add(notification)
         db.session.commit()
-        print(f"🔔 Notification created: {notification_type} from {from_user_id} to {to_user_id}")
-        return notification
-        
+        return True
     except Exception as e:
-        print(f"❌ Error creating notification: {e}")
+        print(f"Errore creazione notifica: {e}")
         db.session.rollback()
-        return None
+        return False
 
+def create_system_notification(recipient_id, notification_type, title, message):
+    """Crea una notifica di sistema (senza sender)"""
+    return create_notification(recipient_id, notification_type, title, message)
 
-def create_system_notification(to_user_id, notification_type, title, message, extra_data=None):
-    """Crea una notifica di sistema (senza mittente)"""
+def time_ago(dt):
+    """Converte datetime in formato 'time ago'"""
+    if not dt:
+        return 'Unknown'
+    
+    now = datetime.utcnow()
+    diff = now - dt
+    
+    if diff.days > 0:
+        return f"{diff.days}g fa"
+    elif diff.seconds > 3600:
+        hours = diff.seconds // 3600
+        return f"{hours}h fa"
+    elif diff.seconds > 60:
+        minutes = diff.seconds // 60
+        return f"{minutes}m fa"
+    else:
+        return "Ora"
+
+# ======================================== 
+# MAIN ROUTES 
+# ======================================== 
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# ======================================== 
+# AUTH API ROUTES 
+# ======================================== 
+
+@app.route('/api/register', methods=['POST'])
+def register():
     try:
-        notification = Notification(
-            from_user_id=None,  # Sistema
-            to_user_id=to_user_id,
-            type=notification_type,
-            title=title,
-            message=message,
-            data=json.dumps(extra_data) if extra_data else None
+        data = request.get_json()
+        
+        # Validazione input
+        required_fields = ['nome', 'cognome', 'username', 'email', 'corso', 'password']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Campo {field} richiesto'}), 400
+        
+        # Verifica se username o email esistono già
+        existing_user = User.query.filter(
+            (User.username == data['username']) | (User.email == data['email'])
+        ).first()
+        
+        if existing_user:
+            return jsonify({'error': 'Username o email già in uso'}), 400
+        
+        # Crea nuovo utente
+        password_hash = generate_password_hash(data['password'])
+        
+        # Primo utente diventa admin automaticamente
+        is_admin = User.query.count() == 0
+        
+        user = User(
+            username=data['username'],
+            email=data['email'],
+            password_hash=password_hash,
+            nome=data['nome'],
+            cognome=data['cognome'],
+            corso=data['corso'],
+            bio=data.get('bio', ''),
+            is_admin=is_admin
         )
         
-        db.session.add(notification)
+        db.session.add(user)
         db.session.commit()
-        print(f"🔔 System notification created: {notification_type} to {to_user_id}")
-        return notification
         
-    except Exception as e:
-        print(f"❌ Error creating system notification: {e}")
-        db.session.rollback()
-        return None
-
-
-# ========================================
-# API ROUTES NOTIFICHE
-# ========================================
-
-@app.route('/api/notifications', methods=['GET'])
-def get_notifications():
-    """Ottieni notifiche dell'utente corrente"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
+        # Login automatico
+        session['user_id'] = user.id
         
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
-        
-        notifications = Notification.query.filter_by(to_user_id=user.id).order_by(
-            Notification.created_at.desc()
-        ).paginate(page=page, per_page=per_page, error_out=False)
+        # 🔔 Crea notifica di benvenuto
+        create_system_notification(
+            user.id,
+            'welcome',
+            'Benvenuto in CourseConnect!',
+            f'Ciao {user.nome}! Benvenuto nella community di corsisti più dinamica. Inizia a connetterti e condividere la tua esperienza di apprendimento!'
+        )
         
         return jsonify({
-            'notifications': [n.to_dict() for n in notifications.items],
-            'unread_count': user.get_unread_notifications_count(),
-            'total': notifications.total,
-            'has_next': notifications.has_next
-        })
+            'message': 'Registrazione completata con successo!',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'nome': user.nome,
+                'cognome': user.cognome,
+                'corso': user.corso,
+                'avatar_color': user.avatar_color,
+                'initials': user.initials,
+                'is_admin': user.is_admin
+            }
+        }), 201
         
     except Exception as e:
-        return jsonify({'error': f'Errore caricamento notifiche: {str(e)}'}), 500
+        db.session.rollback()
+        return jsonify({'error': f'Errore durante la registrazione: {str(e)}'}), 500
 
-
-@app.route('/api/notifications/mark-read', methods=['POST'])
-def mark_notifications_read():
-    """Segna notifiche come lette"""
+@app.route('/api/login', methods=['POST'])
+def login():
     try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
         
-        data = request.get_json() or {}
-        notification_ids = data.get('notification_ids', [])
+        if not username or not password:
+            return jsonify({'error': 'Username e password richiesti'}), 400
         
-        if notification_ids:
-            # Segna specifiche notifiche come lette
-            Notification.query.filter(
-                Notification.id.in_(notification_ids),
-                Notification.to_user_id == user.id
-            ).update({'is_read': True}, synchronize_session=False)
+        user = User.query.filter_by(username=username).first()
+        
+        if user and check_password_hash(user.password_hash, password):
+            session['user_id'] = user.id
+            
+            return jsonify({
+                'message': 'Login effettuato con successo!',
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'nome': user.nome,
+                    'cognome': user.cognome,
+                    'corso': user.corso,
+                    'avatar_color': user.avatar_color,
+                    'initials': user.initials,
+                    'is_admin': user.is_admin
+                }
+            }), 200
         else:
-            # Segna tutte come lette
-            Notification.query.filter_by(
-                to_user_id=user.id,
-                is_read=False
-            ).update({'is_read': True}, synchronize_session=False)
-        
-        db.session.commit()
+            return jsonify({'error': 'Credenziali non valide'}), 401
+            
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il login: {str(e)}'}), 500
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.pop('user_id', None)
+    return jsonify({'message': 'Logout effettuato con successo'}), 200
+
+@app.route('/api/me')
+def me():
+    user = get_current_user()
+    if user:
+        # Conta notifiche non lette
+        unread_notifications = Notification.query.filter_by(
+            recipient_id=user.id,
+            is_read=False
+        ).count()
         
         return jsonify({
-            'message': 'Notifiche segnate come lette',
-            'unread_count': user.get_unread_notifications_count()
-        })
+            'authenticated': True,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'nome': user.nome,
+                'cognome': user.cognome,
+                'email': user.email,
+                'corso': user.corso,
+                'bio': user.bio,
+                'avatar_color': user.avatar_color,
+                'initials': user.initials,
+                'is_admin': user.is_admin,
+                'unread_notifications': unread_notifications
+            }
+        }), 200
+    else:
+        return jsonify({'authenticated': False}), 200
+
+# ======================================== 
+# POSTS API ROUTES 
+# ======================================== 
+
+@app.route('/api/posts', methods=['GET'])
+def get_posts():
+    try:
+        current_user = get_current_user()
+        
+        posts = Post.query.order_by(Post.created_at.desc()).all()
+        
+        posts_data = []
+        for post in posts:
+            # Conta likes e verifica se l'utente corrente ha messo like
+            likes_count = Like.query.filter_by(post_id=post.id).count()
+            is_liked = False
+            if current_user:
+                is_liked = Like.query.filter_by(user_id=current_user.id, post_id=post.id).first() is not None
+            
+            # Conta commenti
+            comments_count = Comment.query.filter_by(post_id=post.id).count()
+            
+            posts_data.append({
+                'id': post.id,
+                'content': post.content,
+                'created_at': post.created_at.isoformat(),
+                'image_filename': post.image_filename,
+                'video_filename': post.video_filename,
+                'likes_count': likes_count,
+                'is_liked': is_liked,
+                'comments_count': comments_count,
+                'author': {
+                    'id': post.author.id,
+                    'username': post.author.username,
+                    'nome': post.author.nome,
+                    'cognome': post.author.cognome,
+                    'corso': post.author.corso,
+                    'avatar_color': post.author.avatar_color,
+                    'initials': post.author.initials
+                }
+            })
+        
+        return jsonify({'posts': posts_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il caricamento dei post: {str(e)}'}), 500
+
+@app.route('/api/posts', methods=['POST'])
+def create_post():
+    user = require_auth()
+    if isinstance(user, tuple):  # Error response
+        return user
+    
+    try:
+        # Handle multipart form data (for file uploads)
+        if request.content_type and request.content_type.startswith('multipart/form-data'):
+            content = request.form.get('content')
+            file = request.files.get('file')
+        else:
+            # Handle JSON data
+            data = request.get_json()
+            content = data.get('content') if data else None
+            file = None
+        
+        if not content:
+            return jsonify({'error': 'Contenuto del post richiesto'}), 400
+        
+        if len(content) > 4000:
+            return jsonify({'error': 'Il post è troppo lungo (max 4000 caratteri)'}), 400
+        
+        # Create post
+        post = Post(
+            content=content,
+            user_id=user.id
+        )
+        
+        # Handle file upload
+        image_filename = None
+        video_filename = None
+        
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4()}_{filename}"
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            file.save(file_path)
+            
+            # Determine if it's an image or video
+            file_ext = filename.rsplit('.', 1)[1].lower()
+            if file_ext in {'png', 'jpg', 'jpeg', 'gif'}:
+                image_filename = unique_filename
+                post.image_filename = image_filename
+            elif file_ext in {'mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', 'flv'}:
+                video_filename = unique_filename
+                post.video_filename = video_filename
+        
+        db.session.add(post)
+        db.session.commit()
+        
+        # 🔔 Crea notifiche per i top utenti attivi (primi 10)
+        top_users = User.query.filter(User.id != user.id).limit(10).all()
+        for top_user in top_users:
+            create_notification(
+                top_user.id,
+                'new_post',
+                'Nuovo post nella community',
+                f'{user.nome} {user.cognome} ha pubblicato qualcosa di interessante!',
+                sender_id=user.id,
+                post_id=post.id
+            )
+        
+        return jsonify({
+            'message': 'Post creato con successo!',
+            'post': {
+                'id': post.id,
+                'content': post.content,
+                'image_filename': image_filename,
+                'video_filename': video_filename,
+                'created_at': post.created_at.isoformat()
+            }
+        }), 201
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Errore aggiornamento notifiche: {str(e)}'}), 500
+        return jsonify({'error': f'Errore durante la creazione del post: {str(e)}'}), 500
 
-
-@app.route('/api/notifications/unread-count', methods=['GET'])
-def get_unread_notifications_count():
-    """Ottieni conteggio notifiche non lette (per polling)"""
+@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
+def delete_post(post_id):
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
     try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'unread_count': 0})
+        post = Post.query.get_or_404(post_id)
         
-        return jsonify({
-            'unread_count': user.get_unread_notifications_count()
-        })
+        # Verifica che l'utente sia l'autore o admin
+        if post.user_id != user.id and not user.is_admin:
+            return jsonify({'error': 'Non autorizzato a eliminare questo post'}), 403
+        
+        # Rimuovi file associati se esistono
+        if post.image_filename:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.image_filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        if post.video_filename:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.video_filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        db.session.delete(post)
+        db.session.commit()
+        
+        return jsonify({'message': 'Post eliminato con successo'}), 200
         
     except Exception as e:
-        return jsonify({'unread_count': 0})
+        db.session.rollback()
+        return jsonify({'error': f'Errore durante l\'eliminazione: {str(e)}'}), 500
 
+@app.route('/api/posts/<int:post_id>/like', methods=['POST'])
+def toggle_like(post_id):
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
+    try:
+        post = Post.query.get_or_404(post_id)
+        
+        # Verifica se esiste già un like
+        existing_like = Like.query.filter_by(user_id=user.id, post_id=post_id).first()
+        
+        if existing_like:
+            # Rimuovi like
+            db.session.delete(existing_like)
+            is_liked = False
+        else:
+            # Aggiungi like
+            like = Like(user_id=user.id, post_id=post_id)
+            db.session.add(like)
+            is_liked = True
+            
+            # 🔔 Crea notifica per l'autore del post (se non è lo stesso utente)
+            if post.author.id != user.id:
+                create_notification(
+                    post.author.id,
+                    'like',
+                    'Nuovo like ricevuto!',
+                    f'{user.nome} {user.cognome} ha messo mi piace al tuo post',
+                    sender_id=user.id,
+                    post_id=post_id
+                )
+        
+        db.session.commit()
+        
+        # Conta totale likes
+        likes_count = Like.query.filter_by(post_id=post_id).count()
+        
+        return jsonify({
+            'likes_count': likes_count,
+            'is_liked': is_liked
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore durante l\'operazione: {str(e)}'}), 500
 
-# ========================================
-# API ROUTES CORSI
-# ========================================
+# ======================================== 
+# COMMENTS API ROUTES 
+# ======================================== 
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
+def get_comments(post_id):
+    try:
+        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.asc()).all()
+        
+        comments_data = []
+        for comment in comments:
+            comments_data.append({
+                'id': comment.id,
+                'content': comment.content,
+                'created_at': comment.created_at.isoformat(),
+                'author': {
+                    'id': comment.author.id,
+                    'username': comment.author.username,
+                    'nome': comment.author.nome,
+                    'cognome': comment.author.cognome,
+                    'avatar_color': comment.author.avatar_color,
+                    'initials': comment.author.initials
+                }
+            })
+        
+        return jsonify({'comments': comments_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il caricamento dei commenti: {str(e)}'}), 500
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def create_comment(post_id):
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
+    try:
+        data = request.get_json()
+        content = data.get('content')
+        
+        if not content:
+            return jsonify({'error': 'Contenuto del commento richiesto'}), 400
+        
+        if len(content) > 1000:
+            return jsonify({'error': 'Commento troppo lungo (max 1000 caratteri)'}), 400
+        
+        post = Post.query.get_or_404(post_id)
+        
+        comment = Comment(
+            content=content,
+            user_id=user.id,
+            post_id=post_id
+        )
+        
+        db.session.add(comment)
+        db.session.commit()
+        
+        # 🔔 Crea notifica per l'autore del post (se non è lo stesso utente)
+        if post.author.id != user.id:
+            create_notification(
+                post.author.id,
+                'comment',
+                'Nuovo commento ricevuto!',
+                f'{user.nome} {user.cognome} ha commentato il tuo post',
+                sender_id=user.id,
+                post_id=post_id,
+                comment_id=comment.id
+            )
+        
+        return jsonify({
+            'message': 'Commento aggiunto con successo!',
+            'comment': {
+                'id': comment.id,
+                'content': comment.content,
+                'created_at': comment.created_at.isoformat()
+            }
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore durante la creazione del commento: {str(e)}'}), 500
+
+@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
+def delete_comment(comment_id):
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
+    try:
+        comment = Comment.query.get_or_404(comment_id)
+        
+        # Verifica che l'utente sia l'autore o admin
+        if comment.user_id != user.id and not user.is_admin:
+            return jsonify({'error': 'Non autorizzato a eliminare questo commento'}), 403
+        
+        db.session.delete(comment)
+        db.session.commit()
+        
+        return jsonify({'message': 'Commento eliminato con successo'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore durante l\'eliminazione: {str(e)}'}), 500
+
+# ======================================== 
+# 🎓 COURSES API ROUTES - NUOVO SISTEMA COMPLETO
+# ======================================== 
 
 @app.route('/api/courses', methods=['GET'])
 def get_courses():
-    """Ottieni tutti i corsi"""
     try:
-        category = request.args.get('category', '')
-        course_type = request.args.get('type', '')
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 12, type=int)
-        
-        query = Course.query.filter_by(is_active=True)
-        
-        # Filtri
-        if category:
-            query = query.filter(Course.category.ilike(f'%{category}%'))
-        if course_type:
-            query = query.filter_by(course_type=course_type)
-        
-        # Per utenti non loggati, mostra solo corsi pubblici
         current_user = get_current_user()
-        if not current_user:
-            query = query.filter_by(is_private=False)
         
-        courses = query.order_by(Course.created_at.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
+        # Filtri dalla query string
+        category = request.args.get('category')
+        skill_level = request.args.get('skill_level')
+        course_type = request.args.get('type')
+        free_only = request.args.get('free_only') == 'true'
+        
+        # Build query
+        query = Course.query
+        
+        if category:
+            query = query.filter(Course.category == category)
+        if skill_level:
+            query = query.filter(Course.skill_level == skill_level)
+        if course_type:
+            query = query.filter(Course.course_type == course_type)
+        if free_only:
+            query = query.filter(Course.price == 0)
+        
+        # Non mostrare corsi privati a utenti non iscritti
+        if not current_user or not current_user.is_admin:
+            query = query.filter(Course.is_private == False)
+        
+        courses = query.order_by(Course.created_at.desc()).all()
+        
+        courses_data = []
+        for course in courses:
+            # Conta iscrizioni
+            enrolled_count = Enrollment.query.filter_by(course_id=course.id).count()
+            
+            # Conta lezioni
+            lessons_count = Lesson.query.filter_by(course_id=course.id).count()
+            
+            # Verifica se l'utente corrente è iscritto
+            is_enrolled = False
+            if current_user:
+                is_enrolled = Enrollment.query.filter_by(
+                    user_id=current_user.id,
+                    course_id=course.id
+                ).first() is not None
+            
+            courses_data.append({
+                'id': course.id,
+                'title': course.title,
+                'description': course.description,
+                'category': course.category,
+                'course_type': course.course_type,
+                'skill_level': course.skill_level,
+                'duration_hours': course.duration_hours,
+                'thumbnail_url': course.thumbnail_url,
+                'price': course.price,
+                'is_private': course.is_private,
+                'created_at': course.created_at.isoformat(),
+                'enrolled_count': enrolled_count,
+                'lessons_count': lessons_count,
+                'is_enrolled': is_enrolled,
+                'total_lessons': lessons_count,  # Compatibility
+                'instructor': {
+                    'id': course.instructor.id,
+                    'nome': course.instructor.nome,
+                    'cognome': course.instructor.cognome,
+                    'username': course.instructor.username
+                } if course.instructor else None
+            })
         
         return jsonify({
-            'courses': [course.to_dict(current_user) for course in courses.items],
-            'total': courses.total,
-            'page': page,
-            'has_next': courses.has_next,
-            'has_prev': courses.has_prev
-        })
+            'courses': courses_data,
+            'total': len(courses_data)
+        }), 200
+        
     except Exception as e:
-        return jsonify({'error': f'Errore caricamento corsi: {str(e)}'}), 500
+        return jsonify({'error': f'Errore durante il caricamento dei corsi: {str(e)}'}), 500
 
+@app.route('/api/courses/<int:course_id>', methods=['GET'])
+def get_course(course_id):
+    try:
+        current_user = get_current_user()
+        
+        course = Course.query.get_or_404(course_id)
+        
+        # Verifica accesso a corsi privati
+        if course.is_private and (not current_user or not current_user.is_admin):
+            return jsonify({'error': 'Corso non disponibile'}), 403
+        
+        # Conta iscrizioni
+        enrolled_count = Enrollment.query.filter_by(course_id=course.id).count()
+        
+        # Verifica se l'utente corrente è iscritto
+        is_enrolled = False
+        enrollment = None
+        if current_user:
+            enrollment = Enrollment.query.filter_by(
+                user_id=current_user.id,
+                course_id=course.id
+            ).first()
+            is_enrolled = enrollment is not None
+        
+        course_data = {
+            'id': course.id,
+            'title': course.title,
+            'description': course.description,
+            'category': course.category,
+            'course_type': course.course_type,
+            'skill_level': course.skill_level,
+            'duration_hours': course.duration_hours,
+            'thumbnail_url': course.thumbnail_url,
+            'price': course.price,
+            'is_private': course.is_private,
+            'created_at': course.created_at.isoformat(),
+            'enrolled_count': enrolled_count,
+            'is_enrolled': is_enrolled,
+            'progress_percentage': enrollment.progress_percentage if enrollment else 0,
+            'instructor': {
+                'id': course.instructor.id,
+                'nome': course.instructor.nome,
+                'cognome': course.instructor.cognome,
+                'username': course.instructor.username
+            } if course.instructor else None
+        }
+        
+        return jsonify({'course': course_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il caricamento del corso: {str(e)}'}), 500
 
 @app.route('/api/courses', methods=['POST'])
 def create_course():
-    """Crea nuovo corso (solo admin/instructor)"""
+    user = require_admin()
+    if isinstance(user, tuple):
+        return user
+    
     try:
-        user = get_current_user()
-        if not user or not user.is_admin:
-            return jsonify({'error': 'Solo gli amministratori possono creare corsi'}), 403
+        data = request.get_json()
         
-        data = _payload()
-        required = ['title', 'category', 'description']
-        missing = [k for k in required if not data.get(k)]
-        if missing:
-            return jsonify({'error': 'Campi obbligatori mancanti', 'missing': missing}), 400
+        # Validazione
+        required_fields = ['title', 'description', 'category', 'skill_level']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Campo {field} richiesto'}), 400
         
         course = Course(
             title=data['title'],
             description=data['description'],
             category=data['category'],
             course_type=data.get('course_type', 'CORSI'),
-            thumbnail_url=data.get('thumbnail_url', ''),
+            skill_level=data['skill_level'],
+            duration_hours=data.get('duration_hours', 0),
+            thumbnail_url=data.get('thumbnail_url'),
+            price=data.get('price', 0.0),
             is_private=data.get('is_private', False),
-            price=float(data.get('price', 0)),
-            duration_hours=int(data.get('duration_hours', 0)),
-            skill_level=data.get('skill_level', 'Beginner'),
             instructor_id=user.id
         )
         
         db.session.add(course)
         db.session.commit()
         
-        # 🔔 NOTIFICA: Nuovo corso creato (a tutti gli utenti attivi)
-        active_users = User.query.filter_by(is_active=True).filter(User.id != user.id).all()
-        for target_user in active_users:
+        # 🔔 Crea notifiche per tutti gli utenti
+        all_users = User.query.filter(User.id != user.id).all()
+        for recipient in all_users:
             create_notification(
-                from_user_id=user.id,
-                to_user_id=target_user.id,
-                notification_type='new_course',
-                title='📚 Nuovo Corso Disponibile!',
-                message=f'{user.nome} ha pubblicato il corso "{course.title}"',
-                extra_data={'course_id': course.id, 'course_title': course.title}
+                recipient.id,
+                'new_course',
+                'Nuovo corso disponibile!',
+                f'È disponibile un nuovo corso: "{course.title}" in {course.category}',
+                sender_id=user.id,
+                course_id=course.id
             )
         
         return jsonify({
-            'message': 'Corso creato con successo',
-            'course': course.to_dict(user)
-        })
+            'message': 'Corso creato con successo!',
+            'course': {
+                'id': course.id,
+                'title': course.title,
+                'category': course.category
+            }
+        }), 201
+        
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Errore creazione corso: {str(e)}'}), 500
+        return jsonify({'error': f'Errore durante la creazione del corso: {str(e)}'}), 500
 
+@app.route('/api/courses/<int:course_id>', methods=['DELETE'])
+def delete_course(course_id):
+    user = require_admin()
+    if isinstance(user, tuple):
+        return user
+    
+    try:
+        course = Course.query.get_or_404(course_id)
+        
+        db.session.delete(course)
+        db.session.commit()
+        
+        return jsonify({'message': 'Corso eliminato con successo'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore durante l\'eliminazione: {str(e)}'}), 500
+
+# ======================================== 
+# 🎓 ENROLLMENTS API ROUTES - NUOVO
+# ======================================== 
 
 @app.route('/api/courses/<int:course_id>/enroll', methods=['POST'])
 def enroll_course(course_id):
-    """Iscriviti a un corso"""
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
     try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
+        course = Course.query.get_or_404(course_id)
         
-        course = db.session.get(Course, course_id)
-        if not course:
-            return jsonify({'error': 'Corso non trovato'}), 404
+        # Verifica se già iscritto
+        existing_enrollment = Enrollment.query.filter_by(
+            user_id=user.id,
+            course_id=course_id
+        ).first()
         
-        # Controlla se già iscritto
-        existing = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
-        if existing:
+        if existing_enrollment:
             return jsonify({'error': 'Già iscritto a questo corso'}), 400
         
         # Crea iscrizione
-        enrollment = Enrollment(user_id=user.id, course_id=course_id)
+        enrollment = Enrollment(
+            user_id=user.id,
+            course_id=course_id
+        )
+        
         db.session.add(enrollment)
         db.session.commit()
         
-        # 🔔 NOTIFICA: Iscrizione al corso (all'istruttore)
-        if course.instructor_id and course.instructor_id != user.id:
+        # 🔔 Crea notifica per l'istruttore
+        if course.instructor and course.instructor.id != user.id:
             create_notification(
-                from_user_id=user.id,
-                to_user_id=course.instructor_id,
-                notification_type='course_enrollment',
-                title='👥 Nuovo Studente!',
-                message=f'{user.nome} {user.cognome} si è iscritto al tuo corso "{course.title}"',
-                extra_data={'course_id': course.id, 'student_id': user.id}
+                course.instructor.id,
+                'course_enrollment',
+                'Nuova iscrizione al corso!',
+                f'{user.nome} {user.cognome} si è iscritto al tuo corso "{course.title}"',
+                sender_id=user.id,
+                course_id=course_id
             )
         
         return jsonify({
             'message': 'Iscrizione completata con successo!',
-            'course': course.to_dict(user)
-        })
+            'enrollment_id': enrollment.id
+        }), 201
+        
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Errore iscrizione: {str(e)}'}), 500
+        return jsonify({'error': f'Errore durante l\'iscrizione: {str(e)}'}), 500
 
+# ======================================== 
+# 🎓 LESSONS API ROUTES - NUOVO
+# ======================================== 
 
 @app.route('/api/courses/<int:course_id>/lessons', methods=['GET'])
 def get_course_lessons(course_id):
-    """Ottieni le lezioni di un corso"""
     try:
-        user = get_current_user()
+        current_user = get_current_user()
         
-        course = db.session.get(Course, course_id)
-        if not course:
-            return jsonify({'error': 'Corso non trovato'}), 404
+        course = Course.query.get_or_404(course_id)
         
-        # Controlla se l'utente può accedere al corso
-        can_access = False
-        if user:
-            # Se è iscritto o è l'instructore o è admin
-            enrollment = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
-            can_access = enrollment or course.instructor_id == user.id or user.is_admin
+        # Verifica se l'utente è iscritto al corso
+        is_enrolled = False
+        if current_user:
+            is_enrolled = Enrollment.query.filter_by(
+                user_id=current_user.id,
+                course_id=course_id
+            ).first() is not None
         
-        # Se non può accedere, mostra solo lezioni gratuite
-        query = Lesson.query.filter_by(course_id=course_id).order_by(Lesson.order_index)
-        if not can_access:
-            query = query.filter_by(is_free=True)
+        lessons = Lesson.query.filter_by(course_id=course_id).order_by(Lesson.order_index).all()
         
-        lessons = query.all()
+        lessons_data = []
+        for lesson in lessons:
+            # Verifica se l'utente ha completato questa lezione
+            is_completed = False
+            if current_user:
+                is_completed = LessonProgress.query.filter_by(
+                    user_id=current_user.id,
+                    lesson_id=lesson.id
+                ).first() is not None
+            
+            # Prima lezione sempre accessibile, le altre solo se iscritto
+            is_accessible = lesson.is_free or is_enrolled or (current_user and current_user.is_admin)
+            
+            lessons_data.append({
+                'id': lesson.id,
+                'title': lesson.title,
+                'content': lesson.content if is_accessible else None,
+                'order_index': lesson.order_index,
+                'duration': lesson.duration_minutes,
+                'is_free': lesson.is_free,
+                'video_url': lesson.video_url if is_accessible else None,
+                'created_at': lesson.created_at.isoformat(),
+                'is_completed': is_completed,
+                'is_accessible': is_accessible
+            })
         
-        return jsonify({
-            'lessons': [lesson.to_dict(user) for lesson in lessons],
-            'course': course.to_dict(user),
-            'can_access_full_course': can_access
-        })
+        return jsonify({'lessons': lessons_data}), 200
+        
     except Exception as e:
-        return jsonify({'error': f'Errore caricamento lezioni: {str(e)}'}), 500
+        return jsonify({'error': f'Errore durante il caricamento delle lezioni: {str(e)}'}), 500
 
+@app.route('/api/lessons/<int:lesson_id>', methods=['GET'])
+def get_lesson(lesson_id):
+    try:
+        current_user = get_current_user()
+        
+        lesson = Lesson.query.get_or_404(lesson_id)
+        course = lesson.course
+        
+        # Verifica accesso
+        is_enrolled = False
+        if current_user:
+            is_enrolled = Enrollment.query.filter_by(
+                user_id=current_user.id,
+                course_id=course.id
+            ).first() is not None
+        
+        # Verifica se l'utente può accedere a questa lezione
+        can_access = lesson.is_free or is_enrolled or (current_user and current_user.is_admin)
+        
+        if not can_access:
+            return jsonify({'error': 'Accesso alla lezione richiede iscrizione al corso'}), 403
+        
+        # Verifica se completata
+        is_completed = False
+        if current_user:
+            is_completed = LessonProgress.query.filter_by(
+                user_id=current_user.id,
+                lesson_id=lesson_id
+            ).first() is not None
+        
+        lesson_data = {
+            'id': lesson.id,
+            'title': lesson.title,
+            'content': lesson.content,
+            'order_index': lesson.order_index,
+            'duration_minutes': lesson.duration_minutes,
+            'is_free': lesson.is_free,
+            'video_url': lesson.video_url,
+            'created_at': lesson.created_at.isoformat(),
+            'is_completed': is_completed,
+            'course': {
+                'id': course.id,
+                'title': course.title
+            }
+        }
+        
+        return jsonify({'lesson': lesson_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il caricamento della lezione: {str(e)}'}), 500
 
 @app.route('/api/lessons/<int:lesson_id>/complete', methods=['POST'])
 def complete_lesson(lesson_id):
-    """Segna lezione come completata"""
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
     try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
+        lesson = Lesson.query.get_or_404(lesson_id)
+        course = lesson.course
         
-        lesson = db.session.get(Lesson, lesson_id)
-        if not lesson:
-            return jsonify({'error': 'Lezione non trovata'}), 404
-        
-        # Controlla se l'utente è iscritto al corso
+        # Verifica iscrizione al corso
         enrollment = Enrollment.query.filter_by(
-            user_id=user.id, 
-            course_id=lesson.course_id
+            user_id=user.id,
+            course_id=course.id
         ).first()
-        if not enrollment:
-            return jsonify({'error': 'Non sei iscritto a questo corso'}), 403
         
-        # Trova o crea progress
-        progress = LessonProgress.query.filter_by(
+        if not enrollment:
+            return jsonify({'error': 'Devi essere iscritto al corso per completare le lezioni'}), 403
+        
+        # Verifica se già completata
+        existing_progress = LessonProgress.query.filter_by(
             user_id=user.id,
             lesson_id=lesson_id
         ).first()
         
-        if not progress:
-            progress = LessonProgress(user_id=user.id, lesson_id=lesson_id)
+        if existing_progress:
+            return jsonify({'error': 'Lezione già completata'}), 400
         
-        progress.is_completed = True
-        progress.completed_at = datetime.utcnow()
+        # Crea record progresso
+        progress = LessonProgress(
+            user_id=user.id,
+            lesson_id=lesson_id,
+            time_spent_minutes=lesson.duration_minutes
+        )
         
         db.session.add(progress)
-        db.session.commit()
         
-        # Calcola nuovo progresso del corso
-        course_progress = lesson.course.get_user_progress(user.id)
-        
-        # 🔔 NOTIFICA: Lezione completata (all'istruttore)
-        if lesson.course.instructor_id and lesson.course.instructor_id != user.id:
-            create_notification(
-                from_user_id=user.id,
-                to_user_id=lesson.course.instructor_id,
-                notification_type='lesson_completed',
-                title='🎯 Progresso Studente!',
-                message=f'{user.nome} ha completato "{lesson.title}" nel corso "{lesson.course.title}"',
-                extra_data={
-                    'lesson_id': lesson.id,
-                    'course_id': lesson.course_id,
-                    'progress': course_progress
-                }
-            )
-        
-        # 🔔 NOTIFICA: Corso completato (se 100%)
-        if course_progress == 100:
-            create_system_notification(
-                to_user_id=user.id,
-                notification_type='course_completed',
-                title='🎉 Corso Completato!',
-                message=f'Complimenti! Hai completato il corso "{lesson.course.title}"',
-                extra_data={'course_id': lesson.course_id}
-            )
-        
-        return jsonify({
-            'message': 'Lezione completata!',
-            'lesson_completed': True,
-            'course_progress': course_progress
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore completamento lezione: {str(e)}'}), 500
-
-
-@app.route('/api/courses/<int:course_id>', methods=['DELETE'])
-def delete_course(course_id):
-    """Elimina corso (solo admin/instructor)"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-        
-        course = db.session.get(Course, course_id)
-        if not course:
-            return jsonify({'error': 'Corso non trovato'}), 404
-        
-        # Solo admin o instructore del corso possono eliminare
-        if not user.is_admin and course.instructor_id != user.id:
-            return jsonify({'error': 'Non hai i permessi per eliminare questo corso'}), 403
-        
-        # Elimina il corso (cascade eliminerà lezioni, iscrizioni, progressi)
-        db.session.delete(course)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Corso eliminato con successo',
-            'deleted_course_id': course_id
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore eliminazione corso: {str(e)}'}), 500
-
-
-@app.route('/api/courses/<int:course_id>/progress', methods=['GET'])
-def get_course_progress(course_id):
-    """Ottieni progresso corso dell'utente"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-        
-        course = db.session.get(Course, course_id)
-        if not course:
-            return jsonify({'error': 'Corso non trovato'}), 404
-        
-        # Ottieni progresso dettagliato
-        total_lessons = course.get_total_lessons()
+        # Aggiorna progresso del corso
+        total_lessons = Lesson.query.filter_by(course_id=course.id).count()
         completed_lessons = LessonProgress.query.join(Lesson).filter(
-            Lesson.course_id == course_id,
             LessonProgress.user_id == user.id,
-            LessonProgress.is_completed == True
-        ).count()
+            Lesson.course_id == course.id
+        ).count() + 1  # +1 per la lezione appena completata
         
-        progress_percentage = round((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0
+        progress_percentage = (completed_lessons / total_lessons) * 100 if total_lessons > 0 else 0
+        enrollment.progress_percentage = progress_percentage
         
-        # Lezioni completate
-        completed_lesson_ids = [
-            p.lesson_id for p in LessonProgress.query.filter_by(
-                user_id=user.id, is_completed=True
-            ).all()
-        ]
-        
-        return jsonify({
-            'course_id': course_id,
-            'progress_percentage': progress_percentage,
-            'completed_lessons': completed_lessons,
-            'total_lessons': total_lessons,
-            'completed_lesson_ids': completed_lesson_ids,
-            'course': course.to_dict(user)
-        })
-    except Exception as e:
-        return jsonify({'error': f'Errore caricamento progresso: {str(e)}'}), 500
-
-
-# ========================================
-# UTILITY
-# ========================================
-
-def get_current_user():
-    """Ottieni utente corrente dalla sessione"""
-    uid = session.get('user_id')
-    if not uid:
-        return None
-    return db.session.get(User, uid)
-
-
-def _seed_data():
-    """Popola dati essenziali + corsi demo"""
-    # Crea admin se non esiste
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        admin = User(
-            username='admin',
-            email='admin@courseconnect.it',
-            nome='Amministratore',
-            cognome='CourseConnect',
-            corso='Gestione Piattaforma',
-            is_admin=True,
-            bio='Gestisco la piattaforma CourseConnect per garantire la migliore esperienza a tutti i corsisti.'
-        )
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-        
-        # Post di benvenuto dell'admin
-        if Post.query.count() == 0:
-            welcome_post = Post(
-                content='''🎉 **Benvenuti in CourseConnect!**
-
-Il social network dedicato ai corsisti è finalmente online! 🚀
-
-✨ **Cosa puoi fare:**
-- 👥 **Connetterti** con altri corsisti da tutta Italia
-- 📝 **Condividere** progetti, esperienze e successi
-- 💡 **Scambiare** consigli, risorse e opportunità
-- 📸 **Caricare immagini e video** nei tuoi post
-- ❤️ **Mettere like** e commentare
-- 🔗 **Creare collegamenti** con la community
-- ⭐ **Lasciare recensioni** per aiutare altri corsisti
-- 📚 **Accedere ai corsi** e tracciare i tuoi progressi
-- 🔔 **Ricevere notifiche** per rimanere sempre aggiornato
-
-**Inizia subito a condividere la tua esperienza di apprendimento!**
-
-*Insieme possiamo crescere più velocemente!* 📚✨
-
-*Buon studio a tutti!*
-**- Team CourseConnect**''',
-                user_id=admin.id
+        # Se corso completato al 100%
+        if progress_percentage >= 100 and not enrollment.completed_at:
+            enrollment.completed_at = datetime.utcnow()
+            
+            # 🔔 Notifica di completamento corso
+            create_system_notification(
+                user.id,
+                'course_completed',
+                'Corso completato!',
+                f'Complimenti! Hai completato il corso "{course.title}". Hai guadagnato nuove competenze!'
             )
-            db.session.add(welcome_post)
-            db.session.commit()
-            print("✅ Post di benvenuto creato!")
-    
-    # Crea corsi demo se non esistono
-    if Course.query.count() == 0:
-        demo_courses = [
-            {
-                'title': 'Fondamenti di Web Design Moderno',
-                'description': 'Impara le basi del web design moderno con HTML5, CSS3 e JavaScript. Dalla teoria alla pratica con progetti reali e responsive design.',
-                'category': 'Web Design',
-                'course_type': 'CORSI',
-                'thumbnail_url': 'https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=400',
-                'duration_hours': 40,
-                'skill_level': 'Beginner',
-                'instructor_id': admin.id
-            },
-            {
-                'title': 'SEO e Posizionamento Avanzato',
-                'description': 'Strategie professionali per posizionare il tuo sito web ai primi posti sui motori di ricerca. SEO tecnica, content marketing e link building.',
-                'category': 'SEO e Marketing',
-                'course_type': 'CORSI', 
-                'thumbnail_url': 'https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?w=400',
-                'duration_hours': 25,
-                'skill_level': 'Intermediate',
-                'instructor_id': admin.id
-            },
-            {
-                'title': 'Sviluppo CMS e E-commerce',
-                'description': 'Creazione completa di siti web dinamici e negozi online. Content Management Systems, database e sistemi di pagamento.',
-                'category': 'Sviluppo Web',
-                'course_type': 'CORSI',
-                'thumbnail_url': 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400',
-                'duration_hours': 35,
-                'skill_level': 'Intermediate',
-                'instructor_id': admin.id
-            },
-            {
-                'title': 'Business Digital e Acquisizione Clienti',
-                'description': 'Strategie avanzate di marketing digitale per freelancer e agenzie. Sales funnel, automation e conversion optimization.',
-                'category': 'Business e Marketing',
-                'course_type': 'TRAINING',
-                'thumbnail_url': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400',
-                'duration_hours': 20,
-                'skill_level': 'Advanced',
-                'instructor_id': admin.id,
-                'is_private': True
-            }
-        ]
-        
-        for course_data in demo_courses:
-            course = Course(**course_data)
-            db.session.add(course)
-        
-        db.session.commit()
-        print("✅ Corsi demo creati!")
-        
-        # Aggiungi alcune lezioni demo
-        courses = Course.query.all()
-        for course in courses:
-            for i in range(5):
-                lesson = Lesson(
-                    title=f'Lezione {i+1}: Introduzione a {course.category}',
-                    description=f'In questa lezione imparerai i fondamenti di {course.category}',
-                    content=f'''# Lezione {i+1}: {course.title}
-
-## Obiettivi della lezione
-- Comprendere i concetti base
-- Applicare le tecniche apprese
-- Completare gli esercizi pratici
-
-## Contenuto
-Questa è una lezione demo per il corso **{course.title}**.
-
-### Argomenti trattati:
-1. Introduzione teorica
-2. Esempi pratici
-3. Esercizi guidati
-4. Verifica finale
-
-*Durata stimata: 30 minuti*''',
-                    order_index=i,
-                    duration_minutes=30,
-                    is_free=(i == 0),  # Prima lezione gratuita
+            
+            # 🔔 Notifica all'istruttore
+            if course.instructor and course.instructor.id != user.id:
+                create_notification(
+                    course.instructor.id,
+                    'course_completed',
+                    'Studente ha completato il corso!',
+                    f'{user.nome} {user.cognome} ha completato il corso "{course.title}"',
+                    sender_id=user.id,
                     course_id=course.id
                 )
-                db.session.add(lesson)
-        
-        db.session.commit()
-        print("✅ Lezioni demo create!")
-
-
-def create_tables():
-    """Crea tabelle database e fa seed minimo (solo admin)."""
-    db.create_all()
-    _seed_data()
-
-
-def _payload():
-    """
-    Estrae i dati sia da JSON che da form-data/x-www-form-urlencoded
-    e normalizza chiavi alternative dal frontend.
-    """
-    if request.is_json:
-        data = request.get_json(silent=True) or {}
-    elif request.form:
-        data = request.form.to_dict()
-    else:
-        try:
-            data = json.loads((request.data or b'').decode('utf-8') or '{}')
-        except Exception:
-            data = {}
-
-    # Alias comuni (inglese -> italiano)
-    alias = {
-        'firstName': 'nome',
-        'lastName': 'cognome',
-        'course': 'corso',
-        'bioText': 'bio',
-        'password1': 'password',
-        'password_confirm': 'password',
-    }
-    for k, v in list(data.items()):
-        if k in alias and alias[k] not in data:
-            data[alias[k]] = v
-
-    # Trim stringhe
-    for k, v in list(data.items()):
-        if isinstance(v, str):
-            data[k] = v.strip()
-
-    return data
-
-
-def _allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def get_file_type(filename):
-    """Determina se un file è immagine o video"""
-    if not filename:
-        return None
-    ext = filename.rsplit('.', 1)[1].lower()
-    if ext in {'png', 'jpg', 'jpeg', 'gif', 'webp'}:
-        return 'image'
-    elif ext in {'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'}:
-        return 'video'
-    return None
-
-# ========================================
-# API ROUTES
-# ========================================
-
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Health check per monitoring"""
-    try:
-        db.session.execute(text('SELECT 1'))
-        return jsonify({
-            'status': 'healthy',
-            'database': 'connected',
-            'users_count': User.query.count(),
-            'posts_count': Post.query.count(),
-            'comments_count': Comment.query.count(),
-            'reviews_count': Review.query.count(),
-            'courses_count': Course.query.count(),
-            'enrollments_count': Enrollment.query.count(),
-            'notifications_count': Notification.query.count(),
-            'upload_folder': UPLOAD_FOLDER,
-            'video_folder': VIDEO_FOLDER,
-            'timestamp': datetime.utcnow().isoformat()
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e), 'timestamp': datetime.utcnow().isoformat()}), 500
-
-
-@app.route('/api/register', methods=['POST'])
-def register():
-    """Registrazione nuovo utente (accetta JSON o form, con alias)"""
-    try:
-        data = _payload()
-        required = ['username', 'email', 'nome', 'cognome', 'corso', 'password']
-        missing = [k for k in required if not (data.get(k) or '').strip()]
-        if missing:
-            return jsonify({'error': 'Tutti i campi sono obbligatori', 'missing_fields': missing}), 400
-        if len(data['password']) < 6:
-            return jsonify({'error': 'La password deve avere almeno 6 caratteri'}), 400
-
-        if User.query.filter_by(username=data['username']).first():
-            return jsonify({'error': 'Username già in uso'}), 400
-        if User.query.filter_by(email=data['email']).first():
-            return jsonify({'error': 'Email già registrata'}), 400
-
-        user = User(
-            username=data['username'],
-            email=data['email'],
-            nome=data['nome'],
-            cognome=data['cognome'],
-            corso=data['corso'],
-            bio=(data.get('bio') or '')
-        )
-        user.set_password(data['password'])
-        db.session.add(user)
-        db.session.commit()
-
-        # 🔔 NOTIFICA: Benvenuto al nuovo utente
-        create_system_notification(
-            to_user_id=user.id,
-            notification_type='welcome',
-            title='🎉 Benvenuto in CourseConnect!',
-            message=f'Ciao {user.nome}! Benvenuto nella community di corsisti più dinamica. Inizia a esplorare i corsi e connettiti con altri studenti!',
-            extra_data={'first_login': True}
-        )
-
-        session['user_id'] = user.id
-        return jsonify({'message': 'Registrazione completata', 'user': user.to_dict()})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore registrazione: {str(e)}'}), 500
-
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    """Login utente (accetta JSON o form)"""
-    try:
-        data = _payload()
-        username = (data.get('username') or '')
-        password = (data.get('password') or '')
-        if not username or not password:
-            return jsonify({'error': 'Username e password richiesti'}), 400
-
-        user = User.query.filter_by(username=username).first()
-        if not user or not user.check_password(password):
-            return jsonify({'error': 'Credenziali non valide'}), 401
-
-        session['user_id'] = user.id
-        return jsonify({'message': 'Login effettuato', 'user': user.to_dict()})
-    except Exception as e:
-        return jsonify({'error': f'Errore login: {str(e)}'}), 500
-
-
-@app.route('/api/logout', methods=['POST'])
-def logout():
-    """Logout utente"""
-    session.pop('user_id', None)
-    return jsonify({'message': 'Logout effettuato'})
-
-
-@app.route('/api/me', methods=['GET'])
-def get_current_user_info():
-    """
-    Informazioni utente corrente.
-    Evitiamo 401 in console: se non autenticato, 200 con authenticated:false.
-    """
-    user = get_current_user()
-    if not user:
-        return jsonify({'authenticated': False, 'user': None})
-    return jsonify({'authenticated': True, 'user': user.to_dict()})
-
-
-# ======= USERS API =======
-@app.route('/api/users', methods=['GET'])
-def list_users():
-    """Elenco ultimi utenti attivi (per sidebar)."""
-    try:
-        limit = request.args.get('limit', 20, type=int)
-        q = (request.args.get('q') or '').strip()
-
-        query = User.query.filter_by(is_active=True)
-        if q:
-            like = f"%{q.lower()}%"
-            query = query.filter(
-                db.or_(
-                    db.func.lower(User.nome).like(like),
-                    db.func.lower(User.cognome).like(like),
-                    db.func.lower(User.username).like(like),
-                )
-            )
-        users = query.order_by(User.created_at.desc()).limit(limit).all()
-        return jsonify({'users': [u.to_dict() for u in users]})
-    except Exception as e:
-        return jsonify({'error': f'Errore caricamento utenti: {str(e)}'}), 500
-
-
-# ======= POSTS =======
-
-@app.route('/api/posts', methods=['GET'])
-def get_posts():
-    """Ottieni feed post (pubblico)"""
-    try:
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
-        
-        posts = Post.query.order_by(Post.created_at.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
-        
-        current_user = get_current_user()
-        return jsonify({
-            'posts': [post.to_dict(current_user) for post in posts.items],
-            'has_next': posts.has_next,
-            'has_prev': posts.has_prev,
-            'page': page,
-            'total': posts.total
-        })
-    except Exception as e:
-        return jsonify({'error': f'Errore caricamento post: {str(e)}'}), 500
-
-
-@app.route('/api/posts', methods=['POST'])
-def create_post():
-    """Crea nuovo post (richiede login) - FIX VIDEO COMPLETO"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-
-        # Log della richiesta
-        print(f"🔍 POST Request - Content-Type: {request.content_type}")
-        print(f"🔍 Form data: {dict(request.form)}")
-        print(f"🔍 Files: {list(request.files.keys())}")
-
-        # Handle both JSON and form data
-        if request.is_json:
-            data = request.get_json()
-            content = (data.get('content') or '').strip()
-            file = None
-            print("🔍 JSON request detected")
         else:
-            content = request.form.get('content', '').strip()
-            file = request.files.get('file')
-            print(f"🔍 Form request detected - Content: {len(content)} chars")
-            if file:
-                print(f"🔍 File detected: {file.filename}, Size: {len(file.read())} bytes")
-                file.seek(0)  # Reset file pointer dopo la lettura
-
-        if not content:
-            return jsonify({'error': 'Contenuto post richiesto'}), 400
-        if len(content) > 4000:
-            return jsonify({'error': 'Post troppo lungo (max 4000 caratteri)'}), 400
-
-        post = Post(content=content, user_id=user.id)
-        
-        # Handle file upload con LOG COMPLETO
-        if file and file.filename:
-            print(f"🔍 Processing file: {file.filename}")
-            print(f"🔍 File content type: {file.content_type}")
-            print(f"🔍 File size: {len(file.read())} bytes")
-            file.seek(0)  # Reset file pointer
-            
-            file_type = get_file_type(file.filename)
-            print(f"🔍 File type detected: {file_type}")
-            
-            if file_type and _allowed_file(file.filename):
-                import uuid
-                filename = str(uuid.uuid4()) + '.' + file.filename.rsplit('.', 1)[1].lower()
-                print(f"🔍 Generated filename: {filename}")
-                
-                if file_type == 'video':
-                    # Save in videos subfolder
-                    video_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'videos')
-                    os.makedirs(video_folder, exist_ok=True)
-                    filepath = os.path.join(video_folder, filename)
-                    post.video_filename = f'videos/{filename}'
-                    print(f"🎥 Saving video to: {filepath}")
-                    print(f"🎥 Video filename in DB: {post.video_filename}")
-                else:
-                    # Save image in main folder
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    post.image_filename = filename
-                    print(f"🖼️ Saving image to: {filepath}")
-                    print(f"🖼️ Image filename in DB: {post.image_filename}")
-                
-                # Salva il file
-                file.save(filepath)
-                
-                # Verifica che il file sia stato salvato
-                if os.path.exists(filepath):
-                    file_size = os.path.getsize(filepath)
-                    print(f"✅ File saved successfully: {filepath} ({file_size} bytes)")
-                else:
-                    print(f"❌ File NOT saved: {filepath}")
-                    return jsonify({'error': 'Errore salvataggio file'}), 500
-            else:
-                print(f"❌ File type not allowed: {file.filename}, type: {file_type}")
-                return jsonify({'error': 'Formato file non supportato'}), 400
-
-        # Salva nel database
-        db.session.add(post)
-        db.session.commit()
-        print(f"✅ Post created successfully with ID: {post.id}")
-        
-        # 🔔 NOTIFICA: Nuovo post (ai followers/amici - per ora a tutti)
-        # Per ora mandiamo notifica a tutti gli utenti attivi tranne l'autore
-        active_users = User.query.filter_by(is_active=True).filter(User.id != user.id).limit(10).all()  # Limita a 10 per non spammare
-        for target_user in active_users:
-            create_notification(
-                from_user_id=user.id,
-                to_user_id=target_user.id,
-                notification_type='new_post',
-                title='📝 Nuovo Post!',
-                message=f'{user.nome} ha pubblicato qualcosa di interessante',
-                extra_data={'post_id': post.id, 'has_media': bool(post.image_filename or post.video_filename)}
-            )
-        
-        # Log del post creato
-        post_dict = post.to_dict(user)
-        print(f"✅ Post data: {post_dict}")
-
-        return jsonify({'message': 'Post creato', 'post': post_dict})
-    except Exception as e:
-        print(f"💥 Error creating post: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        db.session.rollback()
-        return jsonify({'error': f'Errore creazione post: {str(e)}'}), 500
-
-
-@app.route('/api/posts/<int:post_id>/like', methods=['POST'])
-def toggle_like(post_id):
-    """Metti/Togli like a post (richiede login) + NOTIFICHE"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-
-        post = db.session.get(Post, post_id)
-        if not post:
-            return jsonify({'error': 'Post non trovato'}), 404
-
-        existing_like = Like.query.filter_by(user_id=user.id, post_id=post_id).first()
-        if existing_like:
-            db.session.delete(existing_like)
-            action = 'removed'
-        else:
-            db.session.add(Like(user_id=user.id, post_id=post_id))
-            action = 'added'
-            
-            # 🔔 NOTIFICA: Like ricevuto (solo quando si aggiunge like)
-            if post.user_id != user.id:  # Non notificare a se stessi
+            # 🔔 Notifica progresso all'istruttore
+            if course.instructor and course.instructor.id != user.id:
                 create_notification(
-                    from_user_id=user.id,
-                    to_user_id=post.user_id,
-                    notification_type='like',
-                    title='❤️ Mi Piace!',
-                    message=f'{user.nome} ha messo mi piace al tuo post',
-                    extra_data={'post_id': post.id}
+                    course.instructor.id,
+                    'lesson_completed',
+                    'Progresso studente',
+                    f'{user.nome} {user.cognome} ha completato la lezione "{lesson.title}"',
+                    sender_id=user.id,
+                    course_id=course.id
                 )
-
-        db.session.commit()
-        return jsonify({
-            'action': action,
-            'likes_count': post.get_likes_count(),
-            'is_liked': post.is_liked_by(user)
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore like: {str(e)}'}), 500
-
-
-@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
-def delete_post(post_id):
-    """Elimina post (solo l'autore può eliminare)"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-
-        post = db.session.get(Post, post_id)
-        if not post:
-            return jsonify({'error': 'Post non trovato'}), 404
-
-        # Solo l'autore o admin possono eliminare
-        if post.user_id != user.id and not user.is_admin:
-            return jsonify({'error': 'Non hai i permessi per eliminare questo post'}), 403
-
-        # Elimina file se esistono
-        if post.image_filename:
-            try:
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.image_filename)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                    print(f"🗑️ Deleted image: {file_path}")
-            except Exception as e:
-                print(f"Could not delete image file: {e}")
-
-        if post.video_filename:
-            try:
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.video_filename)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                    print(f"🗑️ Deleted video: {file_path}")
-            except Exception as e:
-                print(f"Could not delete video file: {e}")
-
-        # Elimina il post (cascade eliminerà automaticamente like e commenti)
-        db.session.delete(post)
-        db.session.commit()
-
-        return jsonify({
-            'message': 'Post eliminato con successo',
-            'deleted_post_id': post_id
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore eliminazione post: {str(e)}'}), 500
-
-
-# ======= COMMENTI API + NOTIFICHE =======
-
-@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
-def get_comments(post_id):
-    """Ottieni tutti i commenti di un post specifico"""
-    try:
-        post = db.session.get(Post, post_id)
-        if not post:
-            return jsonify({'error': 'Post non trovato'}), 404
-
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 50, type=int)  # Molti commenti per pagina
         
-        # Ordina commenti dal più vecchio al più nuovo (conversazione cronologica)
-        comments_query = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.asc())
-        
-        # Paginazione per post con molti commenti
-        comments = comments_query.paginate(page=page, per_page=per_page, error_out=False)
+        db.session.commit()
         
         return jsonify({
-            'comments': [comment.to_dict() for comment in comments.items],
-            'total': comments.total,
-            'page': page,
-            'has_next': comments.has_next,
-            'has_prev': comments.has_prev,
-            'post_id': post_id
-        })
-    except Exception as e:
-        return jsonify({'error': f'Errore caricamento commenti: {str(e)}'}), 500
-
-
-@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
-def create_comment(post_id):
-    """Crea nuovo commento su un post (richiede login) + NOTIFICHE"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto per commentare'}), 401
-
-        post = db.session.get(Post, post_id)
-        if not post:
-            return jsonify({'error': 'Post non trovato'}), 404
-
-        data = _payload()
-        content = (data.get('content') or '').strip()
+            'message': 'Lezione completata con successo!',
+            'progress_percentage': progress_percentage,
+            'course_completed': progress_percentage >= 100
+        }), 200
         
-        if not content:
-            return jsonify({'error': 'Contenuto del commento richiesto'}), 400
-        if len(content) > 1000:
-            return jsonify({'error': 'Commento troppo lungo (max 1000 caratteri)'}), 400
-
-        comment = Comment(
-            content=content,
-            user_id=user.id,
-            post_id=post_id
-        )
-        db.session.add(comment)
-        db.session.commit()
-
-        # 🔔 NOTIFICA: Nuovo commento (all'autore del post)
-        if post.user_id != user.id:  # Non notificare a se stessi
-            create_notification(
-                from_user_id=user.id,
-                to_user_id=post.user_id,
-                notification_type='comment',
-                title='💬 Nuovo Commento!',
-                message=f'{user.nome} ha commentato il tuo post: "{content[:50]}{"..." if len(content) > 50 else ""}"',
-                extra_data={'post_id': post.id, 'comment_id': comment.id}
-            )
-
-        return jsonify({
-            'message': 'Commento aggiunto con successo',
-            'comment': comment.to_dict()
-        })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Errore creazione commento: {str(e)}'}), 500
+        return jsonify({'error': f'Errore durante il completamento: {str(e)}'}), 500
 
+# ======================================== 
+# 🔔 NOTIFICATIONS API ROUTES 
+# ======================================== 
 
-@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
-def delete_comment(comment_id):
-    """Elimina commento (solo l'autore o admin può eliminare)"""
+@app.route('/api/notifications', methods=['GET'])
+def get_notifications():
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
     try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-
-        comment = db.session.get(Comment, comment_id)
-        if not comment:
-            return jsonify({'error': 'Commento non trovato'}), 404
-
-        # Solo l'autore del commento o admin possono eliminare
-        if comment.user_id != user.id and not user.is_admin:
-            return jsonify({'error': 'Non hai i permessi per eliminare questo commento'}), 403
-
-        # Elimina il commento
-        db.session.delete(comment)
-        db.session.commit()
-
+        notifications = Notification.query.filter_by(
+            recipient_id=user.id
+        ).order_by(Notification.created_at.desc()).limit(50).all()
+        
+        notifications_data = []
+        for notification in notifications:
+            notification_data = {
+                'id': notification.id,
+                'type': notification.type,
+                'title': notification.title,
+                'message': notification.message,
+                'is_read': notification.is_read,
+                'created_at': notification.created_at.isoformat(),
+                'time_ago': time_ago(notification.created_at)
+            }
+            
+            # Aggiungi info sender se presente
+            if notification.sender:
+                notification_data['sender'] = {
+                    'id': notification.sender.id,
+                    'nome': notification.sender.nome,
+                    'cognome': notification.sender.cognome,
+                    'username': notification.sender.username,
+                    'avatar_color': notification.sender.avatar_color,
+                    'initials': notification.sender.initials
+                }
+            
+            notifications_data.append(notification_data)
+        
+        # Conta notifiche non lette
+        unread_count = Notification.query.filter_by(
+            recipient_id=user.id,
+            is_read=False
+        ).count()
+        
         return jsonify({
-            'message': 'Commento eliminato con successo',
-            'deleted_comment_id': comment_id
-        })
+            'notifications': notifications_data,
+            'unread_count': unread_count
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il caricamento delle notifiche: {str(e)}'}), 500
+
+@app.route('/api/notifications/unread-count', methods=['GET'])
+def get_unread_notifications_count():
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
+    try:
+        unread_count = Notification.query.filter_by(
+            recipient_id=user.id,
+            is_read=False
+        ).count()
+        
+        return jsonify({'unread_count': unread_count}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il conteggio: {str(e)}'}), 500
+
+@app.route('/api/notifications/mark-read', methods=['POST'])
+def mark_notifications_read():
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
+    try:
+        data = request.get_json()
+        notification_ids = data.get('notification_ids', [])
+        
+        if notification_ids:
+            # Segna specifiche notifiche come lette
+            Notification.query.filter(
+                Notification.id.in_(notification_ids),
+                Notification.recipient_id == user.id
+            ).update({'is_read': True}, synchronize_session=False)
+        else:
+            # Segna tutte le notifiche come lette
+            Notification.query.filter_by(
+                recipient_id=user.id,
+                is_read=False
+            ).update({'is_read': True}, synchronize_session=False)
+        
+        db.session.commit()
+        
+        return jsonify({'message': 'Notifiche segnate come lette'}), 200
+        
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Errore eliminazione commento: {str(e)}'}), 500
+        return jsonify({'error': f'Errore durante l\'aggiornamento: {str(e)}'}), 500
 
-
-# ======= RECENSIONI API =======
-@app.route('/api/reviews', methods=['GET'])
-def get_reviews():
-    """Ottieni tutte le recensioni approvate"""
-    try:
-        reviews = Review.query.filter_by(is_approved=True).order_by(Review.created_at.desc()).all()
-        return jsonify({
-            'reviews': [review.to_dict() for review in reviews],
-            'total': len(reviews)
-        })
-    except Exception as e:
-        return jsonify({'error': f'Errore caricamento recensioni: {str(e)}'}), 500
-
-
-@app.route('/api/reviews', methods=['POST'])
-def create_review():
-    """Crea nuova recensione (richiede login)"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-
-        data = _payload()
-        required = ['text', 'rating', 'photo_url']
-        missing = [k for k in required if not data.get(k)]
-        if missing:
-            return jsonify({'error': 'Tutti i campi obbligatori richiesti', 'missing_fields': missing}), 400
-
-        text = data['text'].strip()
-        rating = int(data['rating'])
-        photo_url = data['photo_url']
-        location = (data.get('location') or '').strip()
-
-        if not text or len(text) > 500:
-            return jsonify({'error': 'Testo recensione richiesto (max 500 caratteri)'}), 400
-        if rating < 1 or rating > 5:
-            return jsonify({'error': 'Rating deve essere tra 1 e 5 stelle'}), 400
-
-        # Controlla se l'utente ha già lasciato una recensione
-        existing_review = Review.query.filter_by(user_id=user.id).first()
-        if existing_review:
-            return jsonify({'error': 'Hai già lasciato una recensione'}), 400
-
-        review = Review(
-            text=text,
-            rating=rating,
-            photo_url=photo_url,
-            location=location,
-            user_id=user.id
-        )
-        db.session.add(review)
-        db.session.commit()
-
-        return jsonify({
-            'message': 'Recensione pubblicata con successo!',
-            'review': review.to_dict()
-        })
-    except ValueError:
-        return jsonify({'error': 'Rating deve essere un numero valido'}), 400
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore creazione recensione: {str(e)}'}), 500
-
-
-# ======= UPLOADS =======
-@app.route('/uploads/<path:filename>')
-def uploaded_file(filename):
-    """Serve file caricati"""
-    print(f"📁 Serving file: /uploads/{filename}")
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=False)
-
-@app.route('/static/uploads/<path:filename>')
-def static_uploaded_file(filename):
-    """Serve file caricati (route alternativa)"""
-    print(f"📁 Serving static file: /static/uploads/{filename}")
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=False)
-
+# ======================================== 
+# OTHER API ROUTES 
+# ======================================== 
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    """Upload generico per immagini (usato per recensioni, avatar, etc.)"""
-    user = get_current_user()
-    if not user:
-        return jsonify({'error': 'Login richiesto'}), 401
-
-    if 'file' not in request.files:
-        return jsonify({'error': 'Nessun file nel payload (campo "file")'}), 400
-
-    f = request.files['file']
-    if f.filename == '':
-        return jsonify({'error': 'Filename vuoto'}), 400
-
-    if not _allowed_file(f.filename):
-        return jsonify({'error': 'Estensione non permessa'}), 400
-
-    base = secure_filename(f.filename)
-    name, ext = os.path.splitext(base)
-    ts = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-    final_name = f"{user.id}_{ts}{ext.lower()}"
-
-    save_path = os.path.join(app.config['UPLOAD_FOLDER'], final_name)
-    f.save(save_path)
-
-    file_url = f"/uploads/{final_name}"
-    print(f"✅ File uploaded: {file_url}")
-    return jsonify({'url': file_url, 'filename': base})
-
-
-# ========================================
-# ACCOUNT DELETION API
-# ========================================
-
-@app.route('/api/delete-account', methods=['POST'])
-def delete_account():
-    """Elimina account utente con feedback"""
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
     try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Non autorizzato'}), 401
+        if 'file' not in request.files:
+            return jsonify({'error': 'Nessun file fornito'}), 400
         
-        data = _payload()
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'Nessun file selezionato'}), 400
         
-        # Salva feedback sull'eliminazione
-        deleted_account = DeletedAccount(
-            username=user.username,
-            email=user.email,
-            deletion_reason=data.get('reason', ''),
-            feedback=data.get('feedback', '')
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4()}_{filename}"
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            file.save(file_path)
+            
+            return jsonify({
+                'message': 'File caricato con successo',
+                'filename': unique_filename,
+                'url': f'/uploads/{unique_filename}'
+            }), 200
+        else:
+            return jsonify({'error': 'Tipo di file non supportato'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': f'Errore durante l\'upload: {str(e)}'}), 500
+
+@app.route('/api/users')
+def get_users():
+    try:
+        limit = int(request.args.get('limit', 10))
+        users = User.query.order_by(User.created_at.desc()).limit(limit).all()
+        
+        users_data = []
+        for user in users:
+            users_data.append({
+                'id': user.id,
+                'username': user.username,
+                'nome': user.nome,
+                'cognome': user.cognome,
+                'corso': user.corso,
+                'avatar_color': user.avatar_color,
+                'initials': user.initials,
+                'created_at': user.created_at.isoformat()
+            })
+        
+        return jsonify({'users': users_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il caricamento degli utenti: {str(e)}'}), 500
+
+@app.route('/api/reviews', methods=['GET'])
+def get_reviews():
+    try:
+        reviews = Review.query.order_by(Review.created_at.desc()).all()
+        
+        reviews_data = []
+        for review in reviews:
+            reviews_data.append({
+                'id': review.id,
+                'text': review.text,
+                'rating': review.rating,
+                'location': review.location,
+                'photo': review.photo_url,
+                'created_at': review.created_at.isoformat(),
+                'name': f"{review.author.nome} {review.author.cognome}",
+                'course': f"{review.author.corso} • {review.location or 'Italia'}"
+            })
+        
+        return jsonify({'reviews': reviews_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore durante il caricamento delle recensioni: {str(e)}'}), 500
+
+@app.route('/api/reviews', methods=['POST'])
+def create_review():
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
+    try:
+        data = request.get_json()
+        
+        review = Review(
+            text=data['text'],
+            rating=data['rating'],
+            location=data.get('location'),
+            photo_url=data.get('photo_url'),
+            user_id=user.id
         )
-        db.session.add(deleted_account)
         
-        # Elimina l'utente (cascade eliminerà post, commenti, like)
-        db.session.delete(user)
+        db.session.add(review)
         db.session.commit()
         
-        # Pulisci sessione
-        session.clear()
-        
-        print(f"Account deleted: {user.username}, Reason: {data.get('reason', 'No reason')}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Account eliminato con successo'
-        })
+        return jsonify({'message': 'Recensione creata con successo!'}), 201
         
     except Exception as e:
         db.session.rollback()
-        print(f"Account deletion error: {e}")
-        return jsonify({'error': 'Errore durante l\'eliminazione dell\'account'}), 500
+        return jsonify({'error': f'Errore durante la creazione della recensione: {str(e)}'}), 500
 
+@app.route('/api/delete-account', methods=['POST'])
+def delete_account():
+    user = require_auth()
+    if isinstance(user, tuple):
+        return user
+    
+    try:
+        data = request.get_json()
+        
+        # Salva info per statistiche
+        deleted_account = DeletedAccount(
+            username=user.username,
+            email=user.email,
+            deletion_reason=data.get('reason'),
+            feedback=data.get('feedback')
+        )
+        
+        db.session.add(deleted_account)
+        
+        # Elimina l'utente (cascade eliminerà post, commenti, etc.)
+        db.session.delete(user)
+        db.session.commit()
+        
+        # Logout
+        session.pop('user_id', None)
+        
+        return jsonify({'message': 'Account eliminato con successo'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore durante l\'eliminazione: {str(e)}'}), 500
 
-# ========================================
-# WEB ROUTES
-# ========================================
+@app.route('/api/health')
+def health_check():
+    try:
+        # Statistiche del sistema
+        stats = {
+            'status': 'healthy',
+            'users_count': User.query.count(),
+            'posts_count': Post.query.count(),
+            'comments_count': Comment.query.count(),
+            'courses_count': Course.query.count(),
+            'enrollments_count': Enrollment.query.count(),
+            'lessons_count': Lesson.query.count(),
+            'notifications_count': Notification.query.count(),
+            'reviews_count': Review.query.count()
+        }
+        
+        return jsonify(stats), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore del sistema: {str(e)}'}), 500
 
-@app.route('/')
-def home():
-    """Homepage"""
-    return render_template('index.html')
+# ======================================== 
+# DATABASE INITIALIZATION 
+# ======================================== 
 
+def init_db():
+    """Inizializza il database con dati di esempio"""
+    with app.app_context():
+        # Crea tutte le tabelle
+        db.create_all()
+        
+        # Verifica se admin esiste già
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            # Crea account admin
+            admin = User(
+                username='admin',
+                email='admin@courseconnect.com',
+                password_hash=generate_password_hash('admin123'),
+                nome='Admin',
+                cognome='CourseConnect',
+                corso='Amministrazione Sistema',
+                bio='Amministratore principale di CourseConnect',
+                is_admin=True
+            )
+            db.session.add(admin)
+            db.session.commit()
+            
+            # Crea alcuni corsi di esempio
+            sample_courses = [
+                {
+                    'title': 'Corso Hacking Etico Completo',
+                    'description': 'Impara l\'hacking etico, penetration testing e cybersecurity. Diventa un esperto della sicurezza informatica con questo corso completo che copre tutti gli aspetti del mondo della sicurezza informatica.',
+                    'category': 'Cybersecurity',
+                    'skill_level': 'Intermediate',
+                    'duration_hours': 40,
+                    'thumbnail_url': 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=400',
+                    'price': 99.99
+                },
+                {
+                    'title': 'HTML & CSS Moderno',
+                    'description': 'Impara HTML5 e CSS3 da zero. Crea siti web responsivi e moderni utilizzando le tecnologie web più avanzate. Include progetti pratici e esempi reali.',
+                    'category': 'Web Development',
+                    'skill_level': 'Beginner',
+                    'duration_hours': 25,
+                    'thumbnail_url': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400',
+                    'price': 0  # Gratuito
+                },
+                {
+                    'title': 'JavaScript Avanzato',
+                    'description': 'Approfondisci JavaScript con ES6+, async/await, promises, moduli e molto altro. Diventa un developer JavaScript esperto con progetti pratici.',
+                    'category': 'Web Development',
+                    'skill_level': 'Advanced',
+                    'duration_hours': 35,
+                    'thumbnail_url': 'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=400',
+                    'price': 79.99
+                },
+                {
+                    'title': 'Design UX/UI Fundamentals',
+                    'description': 'Impara i principi del design UX/UI, prototipazione, ricerca utente e design thinking. Crea interfacce utente belle e funzionali.',
+                    'category': 'Design',
+                    'skill_level': 'Beginner',
+                    'duration_hours': 30,
+                    'thumbnail_url': 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=400',
+                    'price': 69.99
+                }
+            ]
+            
+            for course_data in sample_courses:
+                course = Course(
+                    instructor_id=admin.id,
+                    **course_data
+                )
+                db.session.add(course)
+            
+            db.session.commit()
+            
+            # Aggiungi lezioni di esempio per il corso Hacking
+            hacking_course = Course.query.filter_by(title='Corso Hacking Etico Completo').first()
+            if hacking_course:
+                sample_lessons = [
+                    {
+                        'title': 'Introduzione all\'Hacking Etico',
+                        'content': '''# Introduzione all'Hacking Etico
 
-# ========================================
-# STARTUP: crea tabelle anche con gunicorn
-# ========================================
+## Cos'è l'Hacking Etico?
 
-with app.app_context():
-    create_tables()
+L'**hacking etico** è la pratica di testare sistemi informatici, reti e applicazioni per identificare vulnerabilità di sicurezza in modo legale e autorizzato.
 
+### Obiettivi principali:
+- Identificare vulnerabilità prima che vengano sfruttate
+- Migliorare la sicurezza dei sistemi
+- Proteggere dati sensibili e infrastrutture critiche
 
-# ========================================
-# DEV ENTRYPOINT (esecuzione locale)
-# ========================================
+### Differenze tra Hacker Etico e Malintenzionato:
+
+| Hacker Etico | Hacker Malintenzionato |
+|---------------|------------------------|
+| Autorizzazione scritta | Accesso non autorizzato |
+| Scopo costruttivo | Scopo distruttivo |
+| Report dettagliati | Sfruttamento delle vulnerabilità |
+
+## Principi Fondamentali
+
+1. **Autorizzazione**: Sempre ottenere permesso scritto
+2. **Responsabilità**: Agire in modo responsabile
+3. **Riservatezza**: Mantenere confidenziali le informazioni
+4. **Integrità**: Non danneggiare i sistemi testati
+
+> "Un grande potere comporta grandi responsabilità" - Questo vale anche per l'hacking etico.
+
+## Prossimi Passi
+
+Nella prossima lezione vedremo gli strumenti principali utilizzati nel penetration testing.''',
+                        'order_index': 1,
+                        'duration_minutes': 15,
+                        'is_free': True  # Prima lezione sempre gratuita
+                    },
+                    {
+                        'title': 'Strumenti di Penetration Testing',
+                        'content': '''# Strumenti di Penetration Testing
+
+## Kali Linux - La Distribuzione del Pentester
+
+**Kali Linux** è la distribuzione Linux più utilizzata per il penetration testing, contenente oltre 600 strumenti preinstallati.
+
+### Download e Installazione:
+```bash
+# Scarica da: https://www.kali.org/downloads/
+# Verifica checksum:
+sha256sum kali-linux-2024.1-installer-amd64.iso
+```
+
+## Strumenti Essenziali
+
+### 1. Nmap - Network Mapper
+```bash
+# Scan di base
+nmap 192.168.1.1
+
+# Scan dettagliato con service detection
+nmap -sS -sV -O 192.168.1.0/24
+
+# Scan stealth
+nmap -sS -T2 target.com
+```
+
+### 2. Metasploit Framework
+```bash
+# Avvia Metasploit
+msfconsole
+
+# Cerca exploit
+search windows smb
+
+# Usa un exploit
+use exploit/windows/smb/ms17_010_eternalblue
+```
+
+### 3. Burp Suite - Web Application Testing
+- **Proxy**: Intercetta traffico web
+- **Spider**: Crawling automatico
+- **Scanner**: Ricerca vulnerabilità
+- **Repeater**: Test manuali
+
+### 4. Wireshark - Network Analysis
+Analizza il traffico di rete in tempo reale:
+- Cattura pacchetti
+- Analisi protocolli
+- Ricostruzione sessioni
+
+## Lab Practice
+
+Prova questi comandi in un ambiente di test:
+
+```bash
+# Ping sweep
+nmap -sn 192.168.1.0/24
+
+# Port scan top ports
+nmap --top-ports 1000 target.com
+
+# OS fingerprinting
+nmap -O target.com
+```
+
+> ⚠️ **Attenzione**: Usa questi strumenti solo su sistemi che possiedi o hai autorizzazione esplicita a testare.
+
+## Prossima Lezione
+
+Vedremo come eseguire reconnaissance e information gathering in modo professionale.''',
+                        'order_index': 2,
+                        'duration_minutes': 25,
+                        'is_free': False
+                    },
+                    {
+                        'title': 'Reconnaissance e Information Gathering',
+                        'content': '''# Reconnaissance e Information Gathering
+
+Il **reconnaissance** è la fase più importante del penetration testing. Più informazioni raccogli, maggiori sono le possibilità di successo.
+
+## Tipi di Reconnaissance
+
+### 1. Passive Reconnaissance
+Raccolta informazioni **senza** interagire direttamente con il target:
+
+```bash
+# Whois lookup
+whois target.com
+
+# DNS enumeration
+dig target.com ANY
+nslookup target.com
+
+# Google dorking
+site:target.com filetype:pdf
+site:target.com inurl:admin
+```
+
+### 2. Active Reconnaissance
+Interazione **diretta** con il target:
+
+```bash
+# Network scanning
+nmap -sS target.com
+
+# Service enumeration
+nmap -sV -sC target.com
+
+# Web enumeration
+dirb http://target.com
+gobuster dir -u http://target.com -w /usr/share/wordlists/dirb/common.txt
+```
+
+## OSINT (Open Source Intelligence)
+
+### Strumenti OSINT:
+1. **Shodan**: "Google per dispositivi IoT"
+2. **Maltego**: Visualizzazione collegamenti
+3. **theHarvester**: Email e subdomain discovery
+4. **Recon-ng**: Framework OSINT
+
+### theHarvester Example:
+```bash
+# Trova email e subdomains
+theHarvester -d target.com -l 500 -b google
+theHarvester -d target.com -l 500 -b bing
+```
+
+## Social Engineering Information
+
+### Fonti di informazioni:
+- **LinkedIn**: Dipendenti, tecnologie usate
+- **Facebook/Instagram**: Informazioni personali
+- **GitHub**: Codice sorgente, credenziali
+- **Job boards**: Stack tecnologico
+
+### Esempio di ricerca LinkedIn:
+```
+site:linkedin.com "target company" "system administrator"
+site:linkedin.com "target company" "network engineer"
+```
+
+## DNS Enumeration Avanzato
+
+```bash
+# Zone transfer test
+dig axfr @ns1.target.com target.com
+
+# Subdomain enumeration
+dnsrecon -d target.com -t brt -D /usr/share/dnsrecon/namelist.txt
+
+# Reverse DNS lookup
+dnsrecon -r 192.168.1.0/24
+```
+
+## Web Application Reconnaissance
+
+```bash
+# Technology stack identification
+whatweb target.com
+
+# Directory enumeration
+dirb http://target.com
+gobuster dir -u http://target.com -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
+
+# Subdomain enumeration
+sublist3r -d target.com
+```
+
+## Best Practices
+
+1. **Documentazione**: Registra tutto quello che trovi
+2. **Organizzazione**: Usa tools come CherryTree o Obsidian
+3. **Legalità**: Rispetta sempre i termini di servizio
+4. **Stealth**: Usa proxy/VPN quando appropriato
+
+## Lab Exercise
+
+Prova questo workflow su un target autorizzato:
+
+```bash
+# 1. Basic information
+whois target.com
+dig target.com ANY
+
+# 2. Subdomain discovery
+sublist3r -d target.com
+
+# 3. Technology stack
+whatweb target.com
+
+# 4. Directory enumeration (be careful with rate limiting)
+dirb http://target.com -w
+```
+
+> 📝 **Homework**: Crea una checklist personalizzata per il reconnaissance basata sugli strumenti che preferisci.
+
+## Prossima Lezione
+
+Nella prossima lezione impareremo le tecniche di **Vulnerability Assessment** e **Exploitation**.''',
+                        'order_index': 3,
+                        'duration_minutes': 30,
+                        'is_free': False
+                    }
+                ]
+                
+                for lesson_data in sample_lessons:
+                    lesson = Lesson(
+                        course_id=hacking_course.id,
+                        **lesson_data
+                    )
+                    db.session.add(lesson)
+                
+                db.session.commit()
+            
+            # Aggiungi lezioni per HTML & CSS
+            html_course = Course.query.filter_by(title='HTML & CSS Moderno').first()
+            if html_course:
+                html_lessons = [
+                    {
+                        'title': 'Introduzione a HTML5',
+                        'content': '''# Introduzione a HTML5
+
+## Cos'è HTML?
+
+**HTML** (HyperText Markup Language) è il linguaggio di markup standard per creare pagine web.
+
+### Struttura base:
+```html
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La mia prima pagina</title>
+</head>
+<body>
+    <h1>Benvenuto!</h1>
+    <p>Questa è la mia prima pagina HTML.</p>
+</body>
+</html>
+```
+
+## Novità di HTML5
+
+### Nuovi elementi semantici:
+- `<header>`: Intestazione
+- `<nav>`: Navigazione  
+- `<main>`: Contenuto principale
+- `<article>`: Articolo
+- `<section>`: Sezione
+- `<aside>`: Contenuto laterale
+- `<footer>`: Piè di pagina
+
+### Esempio pratico:
+```html
+<header>
+    <nav>
+        <ul>
+            <li><a href="#home">Home</a></li>
+            <li><a href="#about">Chi siamo</a></li>
+        </ul>
+    </nav>
+</header>
+
+<main>
+    <article>
+        <h1>Titolo articolo</h1>
+        <p>Contenuto dell'articolo...</p>
+    </article>
+</main>
+
+<footer>
+    <p>&copy; 2024 Il mio sito</p>
+</footer>
+```
+
+## Attributi globali utili
+
+```html
+<!-- ID e classi -->
+<div id="header" class="container">
+
+<!-- Data attributes -->
+<div data-user-id="123" data-role="admin">
+
+<!-- Accessibilità -->
+<img src="foto.jpg" alt="Descrizione immagine">
+<button aria-label="Chiudi finestra">×</button>
+```
+
+Nella prossima lezione vedremo i form HTML5 e le loro nuove funzionalità!''',
+                        'order_index': 1,
+                        'duration_minutes': 20,
+                        'is_free': True
+                    },
+                    {
+                        'title': 'CSS3 e Layout Moderni',
+                        'content': '''# CSS3 e Layout Moderni
+
+## Flexbox - Layout flessibile
+
+Flexbox rivoluziona il modo di creare layout in CSS:
+
+```css
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.item {
+    flex: 1;
+    padding: 20px;
+}
+```
+
+### Proprietà principali:
+- `justify-content`: Allineamento orizzontale
+- `align-items`: Allineamento verticale
+- `flex-direction`: Direzione (row/column)
+- `flex-wrap`: A capo automatico
+
+## CSS Grid - Layout a griglia
+
+```css
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: 20px;
+    height: 100vh;
+}
+
+.header { grid-area: 1 / 1 / 2 / 4; }
+.sidebar { grid-area: 2 / 1 / 3 / 2; }
+.main { grid-area: 2 / 2 / 3 / 3; }
+.aside { grid-area: 2 / 3 / 3 / 4; }
+.footer { grid-area: 3 / 1 / 4 / 4; }
+```
+
+## CSS Custom Properties (Variabili)
+
+```css
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #e74c3c;
+    --font-size: 16px;
+}
+
+.button {
+    background-color: var(--primary-color);
+    font-size: var(--font-size);
+}
+```
+
+## Responsive Design
+
+```css
+/* Mobile first */
+.container {
+    width: 100%;
+    padding: 10px;
+}
+
+/* Tablet */
+@media (min-width: 768px) {
+    .container {
+        max-width: 750px;
+        margin: 0 auto;
+    }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+    .container {
+        max-width: 1200px;
+        padding: 20px;
+    }
+}
+```
+
+Prossima lezione: JavaScript per interattività!''',
+                        'order_index': 2,
+                        'duration_minutes': 25,
+                        'is_free': False
+                    }
+                ]
+                
+                for lesson_data in html_lessons:
+                    lesson = Lesson(
+                        course_id=html_course.id,
+                        **lesson_data
+                    )
+                    db.session.add(lesson)
+                
+                db.session.commit()
+            
+            print("✅ Database inizializzato con admin e corsi di esempio!")
+            print("👤 Admin: username='admin', password='admin123'")
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_ENV') == 'development'
-    print(f"🚀 CourseConnect avviato su porta {port}")
-    print(f"📊 Admin: admin / admin123")
-    print(f"⭐ Sistema recensioni: attivo")
-    print(f"💬 Sistema commenti: attivo")
-    print(f"🔔 Sistema notifiche: ATTIVO")
-    print(f"📚 Sistema corsi: attivo")
-    print(f"🎥 Upload video: ATTIVO con DEBUG")
-    print(f"🗑️ Eliminazione account: attivo")
-    print(f"📁 Upload folder: {UPLOAD_FOLDER}")
-    print(f"🎥 Video folder: {VIDEO_FOLDER}")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    init_db()
+    app.run(debug=True, host='0.0.0.0', port=5000)
