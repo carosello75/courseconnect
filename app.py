@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti  
-# app.py - Backend Flask con Sistema Completo
+# app.py - Backend Flask con Sistema Completo + Video Fix
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
@@ -47,11 +47,20 @@ if db_url.startswith('sqlite'):
 app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
 app.config.setdefault('SESSION_COOKIE_SECURE', True)
 
-# Uploads (immagini + video)
-UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
+# Uploads (immagini + video) - FIX COMPLETO
+UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'static', 'uploads'))
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'}
+MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Crea anche la cartella video
+VIDEO_FOLDER = os.path.join(UPLOAD_FOLDER, 'videos')
+os.makedirs(VIDEO_FOLDER, exist_ok=True)
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+print(f"📁 Upload folder: {UPLOAD_FOLDER}")
+print(f"🎥 Video folder: {VIDEO_FOLDER}")
 
 db = SQLAlchemy(app)
 
@@ -194,6 +203,21 @@ class Review(db.Model):
             'isStatic': False
         }
 
+
+# ========================================
+# ACCOUNT DELETION MODEL
+# ========================================
+
+class DeletedAccount(db.Model):
+    """Modello per tracciare account eliminati e feedback"""
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    deletion_reason = db.Column(db.String(500))
+    feedback = db.Column(db.Text)
+    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 # ========================================
 # UTILITY
 # ========================================
@@ -331,6 +355,8 @@ def health_check():
             'posts_count': Post.query.count(),
             'comments_count': Comment.query.count(),
             'reviews_count': Review.query.count(),
+            'upload_folder': UPLOAD_FOLDER,
+            'video_folder': VIDEO_FOLDER,
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
@@ -463,20 +489,30 @@ def get_posts():
 
 @app.route('/api/posts', methods=['POST'])
 def create_post():
-    """Crea nuovo post (richiede login)"""
+    """Crea nuovo post (richiede login) - FIX VIDEO COMPLETO"""
     try:
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Login richiesto'}), 401
+
+        # Log della richiesta
+        print(f"🔍 POST Request - Content-Type: {request.content_type}")
+        print(f"🔍 Form data: {dict(request.form)}")
+        print(f"🔍 Files: {list(request.files.keys())}")
 
         # Handle both JSON and form data
         if request.is_json:
             data = request.get_json()
             content = (data.get('content') or '').strip()
             file = None
+            print("🔍 JSON request detected")
         else:
             content = request.form.get('content', '').strip()
             file = request.files.get('file')
+            print(f"🔍 Form request detected - Content: {len(content)} chars")
+            if file:
+                print(f"🔍 File detected: {file.filename}, Size: {len(file.read())} bytes")
+                file.seek(0)  # Reset file pointer dopo la lettura
 
         if not content:
             return jsonify({'error': 'Contenuto post richiesto'}), 400
@@ -485,12 +521,20 @@ def create_post():
 
         post = Post(content=content, user_id=user.id)
         
-        # Handle file upload
+        # Handle file upload con LOG COMPLETO
         if file and file.filename:
+            print(f"🔍 Processing file: {file.filename}")
+            print(f"🔍 File content type: {file.content_type}")
+            print(f"🔍 File size: {len(file.read())} bytes")
+            file.seek(0)  # Reset file pointer
+            
             file_type = get_file_type(file.filename)
+            print(f"🔍 File type detected: {file_type}")
+            
             if file_type and _allowed_file(file.filename):
                 import uuid
                 filename = str(uuid.uuid4()) + '.' + file.filename.rsplit('.', 1)[1].lower()
+                print(f"🔍 Generated filename: {filename}")
                 
                 if file_type == 'video':
                     # Save in videos subfolder
@@ -498,20 +542,43 @@ def create_post():
                     os.makedirs(video_folder, exist_ok=True)
                     filepath = os.path.join(video_folder, filename)
                     post.video_filename = f'videos/{filename}'
+                    print(f"🎥 Saving video to: {filepath}")
+                    print(f"🎥 Video filename in DB: {post.video_filename}")
                 else:
                     # Save image in main folder
                     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                     post.image_filename = filename
+                    print(f"🖼️ Saving image to: {filepath}")
+                    print(f"🖼️ Image filename in DB: {post.image_filename}")
                 
+                # Salva il file
                 file.save(filepath)
+                
+                # Verifica che il file sia stato salvato
+                if os.path.exists(filepath):
+                    file_size = os.path.getsize(filepath)
+                    print(f"✅ File saved successfully: {filepath} ({file_size} bytes)")
+                else:
+                    print(f"❌ File NOT saved: {filepath}")
+                    return jsonify({'error': 'Errore salvataggio file'}), 500
             else:
+                print(f"❌ File type not allowed: {file.filename}, type: {file_type}")
                 return jsonify({'error': 'Formato file non supportato'}), 400
 
+        # Salva nel database
         db.session.add(post)
         db.session.commit()
+        print(f"✅ Post created successfully with ID: {post.id}")
+        
+        # Log del post creato
+        post_dict = post.to_dict(user)
+        print(f"✅ Post data: {post_dict}")
 
-        return jsonify({'message': 'Post creato', 'post': post.to_dict(user)})
+        return jsonify({'message': 'Post creato', 'post': post_dict})
     except Exception as e:
+        print(f"💥 Error creating post: {str(e)}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
         return jsonify({'error': f'Errore creazione post: {str(e)}'}), 500
 
@@ -569,6 +636,7 @@ def delete_post(post_id):
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.image_filename)
                 if os.path.exists(file_path):
                     os.remove(file_path)
+                    print(f"🗑️ Deleted image: {file_path}")
             except Exception as e:
                 print(f"Could not delete image file: {e}")
 
@@ -577,6 +645,7 @@ def delete_post(post_id):
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.video_filename)
                 if os.path.exists(file_path):
                     os.remove(file_path)
+                    print(f"🗑️ Deleted video: {file_path}")
             except Exception as e:
                 print(f"Could not delete video file: {e}")
 
@@ -757,15 +826,20 @@ def create_review():
 # ======= UPLOADS =======
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
+    """Serve file caricati"""
+    print(f"📁 Serving file: /uploads/{filename}")
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=False)
 
 @app.route('/static/uploads/<path:filename>')
 def static_uploaded_file(filename):
+    """Serve file caricati (route alternativa)"""
+    print(f"📁 Serving static file: /static/uploads/{filename}")
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=False)
 
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
+    """Upload generico per immagini (usato per recensioni, avatar, etc.)"""
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Login richiesto'}), 401
@@ -789,21 +863,13 @@ def upload_file():
     f.save(save_path)
 
     file_url = f"/uploads/{final_name}"
+    print(f"✅ File uploaded: {file_url}")
     return jsonify({'url': file_url, 'filename': base})
 
 
 # ========================================
 # ACCOUNT DELETION API
 # ========================================
-
-class DeletedAccount(db.Model):
-    """Modello per tracciare account eliminati e feedback"""
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), nullable=False)
-    email = db.Column(db.String(120), nullable=False)
-    deletion_reason = db.Column(db.String(500))
-    feedback = db.Column(db.Text)
-    deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 @app.route('/api/delete-account', methods=['POST'])
 def delete_account():
@@ -873,6 +939,8 @@ if __name__ == '__main__':
     print(f"📊 Admin: admin / admin123")
     print(f"⭐ Sistema recensioni: attivo")
     print(f"💬 Sistema commenti: attivo")
-    print(f"🎥 Upload video: attivo")
+    print(f"🎥 Upload video: ATTIVO con DEBUG")
     print(f"🗑️ Eliminazione account: attivo")
+    print(f"📁 Upload folder: {UPLOAD_FOLDER}")
+    print(f"🎥 Video folder: {VIDEO_FOLDER}")
     app.run(host='0.0.0.0', port=port, debug=debug)
