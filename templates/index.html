@@ -572,6 +572,221 @@
     .d-flex{
       flex-wrap:wrap;
     }
+    
+    /* 🎓 NUOVO: CSS SISTEMA CORSI */
+    .course-card {
+      background: rgba(45,45,45,.8);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all .3s ease;
+      height: 100%;
+    }
+    .course-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.4);
+      border-color: var(--primary-color);
+    }
+    .course-thumbnail {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+    .course-meta {
+      padding: 1rem;
+    }
+    .course-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-light);
+      margin-bottom: 0.5rem;
+    }
+    .course-description {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+    .course-tags {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .course-tag {
+      background: var(--primary-color);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .course-tag.level-beginner { background: var(--success-color); }
+    .course-tag.level-intermediate { background: var(--warning-color); color: #333; }
+    .course-tag.level-advanced { background: var(--danger-color); }
+    .course-price {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent-color);
+      margin-bottom: 0.5rem;
+    }
+    .course-price.free {
+      color: var(--success-color);
+    }
+    .course-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .course-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .course-info-card {
+      background: rgba(45,45,45,.6);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .enrollment-section {
+      margin-top: 1.5rem;
+      text-align: center;
+    }
+    .enrolled-students {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .course-content {
+      background: rgba(45,45,45,.3);
+      border-radius: 16px;
+      padding: 1.5rem;
+    }
+    .course-content h6 {
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .lesson-item {
+      background: rgba(45,45,45,.4);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all .3s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .lesson-item:hover {
+      background: rgba(102,126,234,.1);
+      border-color: var(--primary-color);
+    }
+    .lesson-item.completed {
+      background: rgba(79,172,254,.1);
+      border-color: var(--success-color);
+    }
+    .lesson-item.locked {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .lesson-title {
+      font-weight: 600;
+      color: var(--text-light);
+    }
+    .lesson-duration {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .lesson-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .lesson-progress {
+      background: rgba(45,45,45,.6);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .progress {
+      background: rgba(45,45,45,.8);
+      border-radius: 10px;
+      height: 8px;
+    }
+    .progress-bar {
+      background: linear-gradient(45deg, var(--primary-color), var(--success-color));
+      border-radius: 10px;
+      transition: width .3s ease;
+    }
+    .lesson-content {
+      background: rgba(45,45,45,.2);
+      border-radius: 16px;
+      padding: 2rem;
+    }
+    .lesson-body {
+      background: rgba(45,45,45,.4);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 2rem;
+      min-height: 400px;
+      color: var(--text-light);
+      line-height: 1.6;
+    }
+    .lesson-body h1, .lesson-body h2, .lesson-body h3 {
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+    .lesson-body code {
+      background: rgba(0,0,0,.5);
+      color: var(--accent-color);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+    .lesson-body pre {
+      background: rgba(0,0,0,.7);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    .lesson-actions {
+      background: rgba(45,45,45,.4);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .lesson-navigation {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    /* Mobile responsiveness per corsi */
+    @media (max-width: 768px) {
+      .course-thumbnail {
+        height: 150px;
+      }
+      .course-meta {
+        padding: 0.75rem;
+      }
+      .course-actions {
+        flex-direction: column;
+      }
+      .lesson-navigation {
+        flex-direction: column;
+        width: 100%;
+      }
+      .lesson-actions .d-flex {
+        flex-direction: column;
+        gap: 1rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -591,6 +806,13 @@
         <ul class="navbar-nav ms-auto">
           <li class="nav-item" id="nav-login"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="fas fa-sign-in-alt me-2"></i>Accedi</a></li>
           <li class="nav-item" id="nav-register"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#registerModal"><i class="fas fa-user-plus me-2"></i>Registrati</a></li>
+          
+          <!-- 🎓 NUOVO: Link Corsi per tutti -->
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#coursesListModal" onclick="loadCoursesForUsers()">
+              <i class="fas fa-graduation-cap me-2"></i>Corsi
+            </a>
+          </li>
           
           <!-- Notifications Bell - Solo per utenti loggati -->
           <li class="nav-item" id="nav-notifications" style="display:none;">
@@ -1210,6 +1432,182 @@
             <div class="text-center p-4">
               <div class="spinner"></div>
               <p>Caricamento corsi...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎓 NUOVO: SISTEMA CORSI COMPLETO -->
+  
+  <!-- Modal Lista Corsi per Utenti -->
+  <div class="modal fade" id="coursesListModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-graduation-cap me-2"></i>Corsi Disponibili
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Filtri Corsi -->
+          <div class="row mb-4">
+            <div class="col-md-4">
+              <select class="form-select" id="courses-filter-category" onchange="loadCoursesForUsers()">
+                <option value="">Tutte le categorie</option>
+                <option value="Cybersecurity">Cybersecurity</option>
+                <option value="Web Development">Web Development</option>
+                <option value="Design">Design</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Data Science">Data Science</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <select class="form-select" id="courses-filter-level" onchange="loadCoursesForUsers()">
+                <option value="">Tutti i livelli</option>
+                <option value="Beginner">Principiante</option>
+                <option value="Intermediate">Intermedio</option>
+                <option value="Advanced">Avanzato</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="courses-filter-free" onchange="loadCoursesForUsers()">
+                <label class="form-check-label" for="courses-filter-free">
+                  Solo corsi gratuiti
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista Corsi -->
+          <div id="courses-user-list">
+            <div class="text-center p-4">
+              <div class="spinner"></div>
+              <p>Caricamento corsi...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Visualizzazione Corso Singolo -->
+  <div class="modal fade" id="courseViewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h5 class="modal-title" id="course-view-title">
+            <i class="fas fa-book me-2"></i>Titolo Corso
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <!-- Info Corso -->
+            <div class="col-lg-4">
+              <div class="course-info-card">
+                <img id="course-view-thumbnail" src="" alt="Course Thumbnail" class="course-thumbnail">
+                <div class="course-meta">
+                  <div class="course-price" id="course-view-price">Gratuito</div>
+                  <div class="course-level" id="course-view-level">Principiante</div>
+                  <div class="course-duration" id="course-view-duration">10 ore</div>
+                  <div class="course-category" id="course-view-category">Web Development</div>
+                </div>
+                <div class="enrollment-section">
+                  <button class="btn btn-primary w-100" id="course-enroll-btn" onclick="enrollInCourse()">
+                    <i class="fas fa-user-plus me-2"></i>Iscriviti al Corso
+                  </button>
+                  <div class="enrolled-students" id="course-students-count">0 studenti iscritti</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Contenuto Corso -->
+            <div class="col-lg-8">
+              <div class="course-content">
+                <!-- Descrizione -->
+                <div class="course-description">
+                  <h6><i class="fas fa-info-circle me-2"></i>Descrizione</h6>
+                  <p id="course-view-description">Descrizione del corso...</p>
+                </div>
+
+                <!-- Curriculum/Lezioni -->
+                <div class="course-curriculum">
+                  <h6><i class="fas fa-list me-2"></i>Programma del Corso</h6>
+                  <div id="course-lessons-list">
+                    <!-- Le lezioni verranno caricate dinamicamente -->
+                  </div>
+                </div>
+
+                <!-- Prerequisiti -->
+                <div class="course-prerequisites">
+                  <h6><i class="fas fa-check-circle me-2"></i>Cosa imparerai</h6>
+                  <div id="course-objectives">
+                    <!-- Obiettivi del corso -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Visualizzazione Lezione -->
+  <div class="modal fade" id="lessonViewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h5 class="modal-title" id="lesson-view-title">
+            <i class="fas fa-play-circle me-2"></i>Titolo Lezione
+          </h5>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="previousLesson()" id="prev-lesson-btn">
+              <i class="fas fa-chevron-left me-1"></i>Precedente
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="nextLesson()" id="next-lesson-btn">
+              Successiva<i class="fas fa-chevron-right ms-1"></i>
+            </button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="lesson-content">
+            <!-- Progress Bar -->
+            <div class="lesson-progress mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>Progresso Corso</span>
+                <span id="lesson-progress-text">0%</span>
+              </div>
+              <div class="progress">
+                <div class="progress-bar" id="lesson-progress-bar" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Contenuto Lezione -->
+            <div class="lesson-body" id="lesson-content">
+              <!-- Contenuto markdown della lezione -->
+            </div>
+
+            <!-- Azioni Lezione -->
+            <div class="lesson-actions mt-4">
+              <div class="d-flex justify-content-between align-items-center">
+                <button class="btn btn-success" onclick="markLessonCompleted()" id="complete-lesson-btn">
+                  <i class="fas fa-check me-2"></i>Segna come Completata
+                </button>
+                <div class="lesson-navigation">
+                  <button class="btn btn-outline-primary" onclick="previousLesson()" id="prev-lesson-btn-bottom">
+                    <i class="fas fa-chevron-left me-1"></i>Precedente
+                  </button>
+                  <button class="btn btn-primary" onclick="nextLesson()" id="next-lesson-btn-bottom">
+                    Successiva<i class="fas fa-chevron-right ms-1"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2899,6 +3297,384 @@
         });
       }
     });
+
+    // ======== 🎓 NUOVO: SISTEMA CORSI PER UTENTI ========
+    
+    let currentCourse = null;
+    let currentLesson = null;
+    let userCourses = [];
+    let courseLessons = [];
+
+    // Carica lista corsi per gli utenti
+    async function loadCoursesForUsers() {
+      const container = document.getElementById('courses-user-list');
+      container.innerHTML = '<div class="text-center p-4"><div class="spinner"></div><p>Caricamento corsi...</p></div>';
+      
+      try {
+        // Applica filtri
+        const category = document.getElementById('courses-filter-category')?.value || '';
+        const level = document.getElementById('courses-filter-level')?.value || '';
+        const freeOnly = document.getElementById('courses-filter-free')?.checked || false;
+        
+        let url = '/api/courses?';
+        if (category) url += `category=${encodeURIComponent(category)}&`;
+        if (level) url += `skill_level=${encodeURIComponent(level)}&`;
+        if (freeOnly) url += `free_only=true&`;
+        
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (res.ok) {
+          renderCoursesForUsers(data.courses || []);
+        } else {
+          container.innerHTML = `<div class="alert alert-danger">Errore: ${data.error}</div>`;
+        }
+      } catch (e) {
+        container.innerHTML = '<div class="alert alert-danger">Errore di connessione</div>';
+      }
+    }
+
+    // Renderizza i corsi per gli utenti
+    function renderCoursesForUsers(courses) {
+      const container = document.getElementById('courses-user-list');
+      
+      if (courses.length === 0) {
+        container.innerHTML = '<div class="text-center p-4"><p class="text-muted">Nessun corso trovato con i filtri selezionati</p></div>';
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="row">
+          ${courses.map(course => `
+            <div class="col-lg-4 col-md-6 mb-4">
+              <div class="course-card">
+                <img src="${course.thumbnail_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400'}" 
+                     alt="${course.title}" class="course-thumbnail">
+                <div class="course-meta">
+                  <div class="course-title">${course.title}</div>
+                  <div class="course-description">${course.description.substring(0, 100)}...</div>
+                  <div class="course-tags">
+                    <span class="course-tag">${course.category}</span>
+                    <span class="course-tag level-${course.skill_level.toLowerCase()}">${course.skill_level}</span>
+                    ${course.course_type ? `<span class="course-tag">${course.course_type}</span>` : ''}
+                  </div>
+                  <div class="course-stats">
+                    <span><i class="fas fa-clock me-1"></i>${course.duration_hours}h</span>
+                    <span><i class="fas fa-users me-1"></i>${course.enrolled_count || 0} studenti</span>
+                    <span><i class="fas fa-book me-1"></i>${course.lessons_count || 0} lezioni</span>
+                  </div>
+                  <div class="course-price ${course.price === 0 ? 'free' : ''}">
+                    ${course.price === 0 ? 'Gratuito' : `€${course.price}`}
+                  </div>
+                  <div class="course-actions">
+                    <button class="btn btn-primary flex-fill" onclick="viewCourse(${course.id})">
+                      <i class="fas fa-eye me-1"></i>Visualizza
+                    </button>
+                    ${course.is_enrolled ? 
+                      '<button class="btn btn-success flex-fill" disabled><i class="fas fa-check me-1"></i>Iscritto</button>' :
+                      `<button class="btn btn-outline-primary flex-fill" onclick="quickEnroll(${course.id})"><i class="fas fa-user-plus me-1"></i>Iscriviti</button>`
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Visualizza corso singolo
+    async function viewCourse(courseId) {
+      try {
+        const res = await fetch(`/api/courses/${courseId}`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          currentCourse = data.course;
+          renderCourseView(data.course);
+          
+          // Chiudi modal lista e apri modal corso
+          bootstrap.Modal.getInstance(document.getElementById('coursesListModal')).hide();
+          setTimeout(() => {
+            new bootstrap.Modal(document.getElementById('courseViewModal')).show();
+          }, 300);
+        } else {
+          showAlert(data.error || 'Errore caricamento corso', 'danger');
+        }
+      } catch (e) {
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
+
+    // Renderizza la vista del corso
+    function renderCourseView(course) {
+      document.getElementById('course-view-title').innerHTML = `<i class="fas fa-book me-2"></i>${course.title}`;
+      document.getElementById('course-view-thumbnail').src = course.thumbnail_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400';
+      document.getElementById('course-view-price').textContent = course.price === 0 ? 'Gratuito' : `€${course.price}`;
+      document.getElementById('course-view-level').textContent = course.skill_level;
+      document.getElementById('course-view-duration').textContent = `${course.duration_hours} ore`;
+      document.getElementById('course-view-category').textContent = course.category;
+      document.getElementById('course-view-description').textContent = course.description;
+      document.getElementById('course-students-count').textContent = `${course.enrolled_count || 0} studenti iscritti`;
+      
+      // Aggiorna pulsante iscrizione
+      const enrollBtn = document.getElementById('course-enroll-btn');
+      if (course.is_enrolled) {
+        enrollBtn.innerHTML = '<i class="fas fa-check me-2"></i>Già Iscritto';
+        enrollBtn.className = 'btn btn-success w-100';
+        enrollBtn.disabled = true;
+      } else {
+        enrollBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Iscriviti al Corso';
+        enrollBtn.className = 'btn btn-primary w-100';
+        enrollBtn.disabled = false;
+      }
+      
+      // Carica lezioni
+      loadCourseLessons(course.id);
+    }
+
+    // Carica lezioni del corso
+    async function loadCourseLessons(courseId) {
+      try {
+        const res = await fetch(`/api/courses/${courseId}/lessons`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          courseLessons = data.lessons || [];
+          renderCourseLessons(data.lessons || []);
+        } else {
+          document.getElementById('course-lessons-list').innerHTML = '<p class="text-muted">Nessuna lezione disponibile</p>';
+        }
+      } catch (e) {
+        document.getElementById('course-lessons-list').innerHTML = '<p class="text-danger">Errore caricamento lezioni</p>';
+      }
+    }
+
+    // Renderizza le lezioni del corso
+    function renderCourseLessons(lessons) {
+      const container = document.getElementById('course-lessons-list');
+      
+      if (lessons.length === 0) {
+        container.innerHTML = '<p class="text-muted">Nessuna lezione ancora disponibile. L\'amministratore sta preparando i contenuti!</p>';
+        return;
+      }
+      
+      container.innerHTML = lessons.map((lesson, index) => {
+        const isLocked = !currentCourse.is_enrolled && index > 0; // Prima lezione sempre libera
+        const isCompleted = lesson.is_completed || false;
+        
+        return `
+          <div class="lesson-item ${isCompleted ? 'completed' : ''} ${isLocked ? 'locked' : ''}" 
+               onclick="${isLocked ? '' : `viewLesson(${lesson.id})`}">
+            <div>
+              <div class="lesson-title">
+                ${index + 1}. ${lesson.title}
+                ${isCompleted ? '<i class="fas fa-check-circle text-success ms-2"></i>' : ''}
+                ${isLocked ? '<i class="fas fa-lock text-warning ms-2"></i>' : ''}
+              </div>
+              <div class="lesson-duration">${lesson.duration || '10'} minuti</div>
+            </div>
+            <div class="lesson-status">
+              ${isLocked ? 
+                '<span class="text-warning"><i class="fas fa-lock me-1"></i>Richiede iscrizione</span>' :
+                '<i class="fas fa-play-circle text-primary"></i>'
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // Aggiorna obiettivi del corso
+      const objectives = [
+        'Comprendere i concetti fondamentali',
+        'Applicare le tecniche apprese',
+        'Completare progetti pratici',
+        'Ottenere certificazione di completamento'
+      ];
+      
+      document.getElementById('course-objectives').innerHTML = objectives.map(obj => 
+        `<div class="mb-2"><i class="fas fa-check text-success me-2"></i>${obj}</div>`
+      ).join('');
+    }
+
+    // Iscrizione rapida al corso
+    async function quickEnroll(courseId) {
+      if (!currentUser) {
+        showAlert('Devi essere loggato per iscriverti ai corsi', 'warning');
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/courses/${courseId}/enroll`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          showAlert('🎉 Iscrizione completata con successo!', 'success');
+          loadCoursesForUsers(); // Ricarica lista
+        } else {
+          showAlert(data.error || 'Errore durante l\'iscrizione', 'danger');
+        }
+      } catch (e) {
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
+
+    // Iscrizione al corso dalla pagina corso
+    async function enrollInCourse() {
+      if (!currentUser) {
+        showAlert('Devi essere loggato per iscriverti ai corsi', 'warning');
+        return;
+      }
+      
+      if (!currentCourse) return;
+      
+      await quickEnroll(currentCourse.id);
+      
+      // Aggiorna vista corso
+      setTimeout(() => {
+        viewCourse(currentCourse.id);
+      }, 1000);
+    }
+
+    // Visualizza lezione
+    async function viewLesson(lessonId) {
+      try {
+        const res = await fetch(`/api/lessons/${lessonId}`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          currentLesson = data.lesson;
+          renderLessonView(data.lesson);
+          
+          // Chiudi modal corso e apri modal lezione
+          bootstrap.Modal.getInstance(document.getElementById('courseViewModal')).hide();
+          setTimeout(() => {
+            new bootstrap.Modal(document.getElementById('lessonViewModal')).show();
+          }, 300);
+        } else {
+          showAlert(data.error || 'Errore caricamento lezione', 'danger');
+        }
+      } catch (e) {
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
+
+    // Renderizza vista lezione
+    function renderLessonView(lesson) {
+      document.getElementById('lesson-view-title').innerHTML = `<i class="fas fa-play-circle me-2"></i>${lesson.title}`;
+      
+      // Contenuto lezione con markdown
+      const content = lesson.content || 'Contenuto in preparazione...';
+      document.getElementById('lesson-content').innerHTML = renderMarkdown(content);
+      
+      // Applica syntax highlighting
+      hljsApply(document.getElementById('lesson-content'));
+      
+      // Aggiorna progress bar
+      updateLessonProgress();
+      
+      // Aggiorna pulsanti navigazione
+      updateLessonNavigation();
+    }
+
+    // Aggiorna barra progresso
+    function updateLessonProgress() {
+      if (!courseLessons || !currentLesson) return;
+      
+      const currentIndex = courseLessons.findIndex(l => l.id === currentLesson.id);
+      const completedLessons = courseLessons.filter(l => l.is_completed).length;
+      const totalLessons = courseLessons.length;
+      const percentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      
+      document.getElementById('lesson-progress-text').textContent = `${percentage}% (${completedLessons}/${totalLessons} lezioni)`;
+      document.getElementById('lesson-progress-bar').style.width = `${percentage}%`;
+    }
+
+    // Aggiorna navigazione lezioni
+    function updateLessonNavigation() {
+      if (!courseLessons || !currentLesson) return;
+      
+      const currentIndex = courseLessons.findIndex(l => l.id === currentLesson.id);
+      const hasPrevious = currentIndex > 0;
+      const hasNext = currentIndex < courseLessons.length - 1;
+      
+      // Pulsanti header
+      document.getElementById('prev-lesson-btn').disabled = !hasPrevious;
+      document.getElementById('next-lesson-btn').disabled = !hasNext;
+      
+      // Pulsanti footer
+      document.getElementById('prev-lesson-btn-bottom').disabled = !hasPrevious;
+      document.getElementById('next-lesson-btn-bottom').disabled = !hasNext;
+      
+      // Pulsante completa lezione
+      const completeBtn = document.getElementById('complete-lesson-btn');
+      if (currentLesson.is_completed) {
+        completeBtn.innerHTML = '<i class="fas fa-check me-2"></i>Completata';
+        completeBtn.className = 'btn btn-success';
+        completeBtn.disabled = true;
+      } else {
+        completeBtn.innerHTML = '<i class="fas fa-check me-2"></i>Segna come Completata';
+        completeBtn.className = 'btn btn-success';
+        completeBtn.disabled = false;
+      }
+    }
+
+    // Lezione precedente
+    function previousLesson() {
+      if (!courseLessons || !currentLesson) return;
+      
+      const currentIndex = courseLessons.findIndex(l => l.id === currentLesson.id);
+      if (currentIndex > 0) {
+        viewLesson(courseLessons[currentIndex - 1].id);
+      }
+    }
+
+    // Lezione successiva  
+    function nextLesson() {
+      if (!courseLessons || !currentLesson) return;
+      
+      const currentIndex = courseLessons.findIndex(l => l.id === currentLesson.id);
+      if (currentIndex < courseLessons.length - 1) {
+        viewLesson(courseLessons[currentIndex + 1].id);
+      }
+    }
+
+    // Segna lezione come completata
+    async function markLessonCompleted() {
+      if (!currentLesson) return;
+      
+      try {
+        const res = await fetch(`/api/lessons/${currentLesson.id}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          currentLesson.is_completed = true;
+          showAlert('✅ Lezione completata!', 'success');
+          updateLessonProgress();
+          updateLessonNavigation();
+          
+          // Auto-avanza alla lezione successiva se disponibile
+          setTimeout(() => {
+            const currentIndex = courseLessons.findIndex(l => l.id === currentLesson.id);
+            if (currentIndex < courseLessons.length - 1) {
+              nextLesson();
+            }
+          }, 1500);
+        } else {
+          showAlert(data.error || 'Errore durante il completamento', 'danger');
+        }
+      } catch (e) {
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
   </script>
 </body>
 </html>
