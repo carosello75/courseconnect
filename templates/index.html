@@ -93,7 +93,13 @@
     .post-content pre code{display:block;padding:1rem;border-radius:12px}
     .post-content pre{background:rgba(0,0,0,.35);border:1px solid var(--border-color)}
     
-    /* 🔧 FIX IMMAGINI E CONTENUTI - PROBLEMA LAYOUT RISOLTO! */
+    /* 🔧 FIX IMMAGINI E VIDEO - LAYOUT COMPLETO! */
+    .post-media {
+      margin: 1rem 0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,.3);
+    }
     .post-content img{
       max-width:100%!important;
       width:auto!important;
@@ -104,9 +110,6 @@
       display:block;
       object-fit:cover;
     }
-    .post-content p img{
-      margin:0.5rem 0;
-    }
     .post-content video{
       max-width:100%!important;
       width:100%;
@@ -114,6 +117,19 @@
       border-radius:12px;
       margin:1rem 0;
       box-shadow:0 4px 12px rgba(0,0,0,.3);
+      background: #000;
+    }
+    .video-info {
+      padding: 0.5rem;
+      background: rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    .video-info a {
+      color: var(--primary-color);
+      text-decoration: none;
+    }
+    .video-info a:hover {
+      text-decoration: underline;
     }
     
     /* 🔧 CONTENIMENTO GENERALE - FORZA TUTTO A STARE NEI CONTAINER */
@@ -928,15 +944,22 @@
       const preview = document.getElementById('filePreview');
       const fileType = file.type.split('/')[0];
       
+      console.log('📁 File selezionato:', {
+        name: file.name,
+        type: file.type,
+        size: (file.size / 1024 / 1024).toFixed(2) + 'MB',
+        fileType: fileType
+      });
+      
       if (fileType === 'image') {
         const reader = new FileReader();
         reader.onload = function(e) {
           preview.innerHTML = `
-            <div class="d-flex align-items-center gap-3">
-              <img src="${e.target.result}" alt="Preview" style="max-width: 150px; max-height: 150px; border-radius: 10px;">
+            <div class="d-flex align-items-center gap-3 p-3 border rounded">
+              <img src="${e.target.result}" alt="Preview" style="max-width: 150px; max-height: 150px; border-radius: 10px; object-fit: cover;">
               <div>
-                <p class="mb-1"><strong>${file.name}</strong></p>
-                <p class="text-muted small mb-0">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p class="mb-1"><strong>🖼️ ${file.name}</strong></p>
+                <p class="text-success small mb-0"><i class="fas fa-check"></i> ${(file.size / 1024 / 1024).toFixed(2)} MB - Pronto per l'upload</p>
                 <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFilePreview()">
                   <i class="fas fa-trash"></i> Rimuovi
                 </button>
@@ -948,15 +971,27 @@
       } else if (fileType === 'video') {
         const reader = new FileReader();
         reader.onload = function(e) {
+          // Determina il tipo MIME
+          const ext = file.name.split('.').pop().toLowerCase();
+          let mimeType = file.type || 'video/mp4';
+          
           preview.innerHTML = `
-            <div class="d-flex align-items-center gap-3">
-              <video controls style="max-width: 200px; max-height: 150px; border-radius: 10px;">
-                <source src="${e.target.result}" type="${file.type}">
-                Il tuo browser non supporta il tag video.
-              </video>
+            <div class="d-flex align-items-center gap-3 p-3 border rounded" style="background: rgba(102, 126, 234, 0.1);">
+              <div style="position: relative;">
+                <video controls style="max-width: 200px; max-height: 150px; border-radius: 10px; object-fit: cover;">
+                  <source src="${e.target.result}" type="${mimeType}">
+                  <source src="${e.target.result}" type="video/mp4">
+                  Il tuo browser non supporta il tag video.
+                </video>
+                <div style="position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px;">
+                  ${ext.toUpperCase()}
+                </div>
+              </div>
               <div>
-                <p class="mb-1"><strong>${file.name}</strong></p>
-                <p class="text-muted small mb-0">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p class="mb-1"><strong>🎥 ${file.name}</strong></p>
+                <p class="text-info small mb-0"><i class="fas fa-video"></i> Video ${ext.toUpperCase()}</p>
+                <p class="text-success small mb-0"><i class="fas fa-check"></i> ${(file.size / 1024 / 1024).toFixed(2)} MB - Pronto per l'upload</p>
+                <p class="text-muted small mb-0">Supportato: MP4, AVI, MOV, WEBM</p>
                 <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFilePreview()">
                   <i class="fas fa-trash"></i> Rimuovi
                 </button>
@@ -965,6 +1000,14 @@
           `;
         };
         reader.readAsDataURL(file);
+      } else {
+        preview.innerHTML = `
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Formato file non supportato:</strong> ${file.type || 'Sconosciuto'}
+            <br><small>Formati supportati: <strong>Immagini</strong> (PNG, JPG, GIF) • <strong>Video</strong> (MP4, AVI, MOV, WEBM)</small>
+          </div>
+        `;
       }
       
       preview.classList.remove('d-none');
@@ -975,7 +1018,7 @@
       document.getElementById('fileInput').value = '';
     }
 
-    // Post creation with files
+    // Post creation with files - DEBUG COMPLETO
     async function handleCreatePost(e) {
       e.preventDefault();
       
@@ -987,33 +1030,76 @@
         return;
       }
       
+      console.log('🚀 Creating post...', {
+        contentLength: content.length,
+        hasFile: !!(fileInput.files[0]),
+        fileName: fileInput.files[0]?.name,
+        fileType: fileInput.files[0]?.type,
+        fileSize: fileInput.files[0] ? (fileInput.files[0].size / 1024 / 1024).toFixed(2) + 'MB' : 'N/A'
+      });
+      
       const formData = new FormData();
       formData.append('content', content);
       
       if (fileInput.files[0]) {
-        formData.append('file', fileInput.files[0]);
+        const file = fileInput.files[0];
+        console.log('📎 Attaching file:', {
+          name: file.name,
+          type: file.type,
+          size: (file.size / 1024 / 1024).toFixed(2) + 'MB'
+        });
+        formData.append('file', file);
+      }
+      
+      // Log FormData contents
+      console.log('📤 FormData contents:');
+      for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`  ${key}: File(${value.name}, ${value.type}, ${(value.size / 1024 / 1024).toFixed(2)}MB)`);
+        } else {
+          console.log(`  ${key}: ${value}`);
+        }
       }
       
       try {
+        console.log('📤 Sending POST request to /api/posts...');
         const response = await fetch('/api/posts', {
           method: 'POST',
           body: formData
         });
         
+        console.log('📥 Response received:', {
+          status: response.status,
+          statusText: response.statusText,
+          contentType: response.headers.get('content-type')
+        });
+        
         const data = await response.json();
+        console.log('📥 Response data:', data);
         
         if (data.message || data.post) {
+          console.log('✅ Post created successfully!', {
+            postId: data.post?.id,
+            hasImage: !!data.post?.image_filename,
+            hasVideo: !!data.post?.video_filename,
+            imageFile: data.post?.image_filename,
+            videoFile: data.post?.video_filename
+          });
+          
           document.getElementById('postForm').reset();
           clearFilePreview();
           document.getElementById('char-count').textContent = '0';
           document.getElementById('post-preview').style.display = 'none';
-          showAlert('Post pubblicato con successo!', 'success');
-          loadPosts();
+          showAlert('🎉 Post pubblicato con successo!', 'success');
+          
+          // Ricarica i post per vedere il nuovo
+          await loadPosts();
         } else {
+          console.error('❌ Error in response:', data);
           showAlert(data.error || 'Errore durante la pubblicazione', 'danger');
         }
       } catch (error) {
-        console.error('Create post error:', error);
+        console.error('💥 Create post error:', error);
         showAlert('Errore di connessione', 'danger');
       }
     }
@@ -1527,7 +1613,43 @@
     async function loadActiveUsers(){ const box=document.getElementById('active-users'); if(!box) return; box.innerHTML='<div class="text-muted">Caricamento...</div>'; try{ const res=await fetch('/api/users?limit=10'); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Errore'); if(!data.users||data.users.length===0){ box.innerHTML='<small class="text-muted">Nessun utente ancora.</small>'; return; } box.innerHTML = data.users.map(u=>`<div class="d-flex align-items-center mb-3"><div class="user-avatar" style="background:${u.avatar_color}; width:40px; height:40px;">${u.initials}</div><div><div class="fw-bold">${u.nome} ${u.cognome}</div><small class="text-muted">@${u.username} • ${u.corso}</small></div></div>`).join(''); } catch(e){ box.innerHTML=`<div class="text-danger"><small>${e.message}</small></div>`; } }
 
     // Posts
-    async function loadPosts(){ const container=document.getElementById('posts-container'); container.innerHTML='<div class="loading"><div class="spinner"></div><p>Caricamento post...</p></div>'; try{ const res=await fetch('/api/posts'); const data=await res.json(); if(res.ok){ posts=data.posts; renderPosts(); } else { container.innerHTML=`<div class="alert alert-danger">Errore: ${data.error}</div>`; } } catch(e){ container.innerHTML='<div class="alert alert-danger">Errore di connessione</div>'; } }
+    async function loadPosts(){ 
+      const container=document.getElementById('posts-container'); 
+      container.innerHTML='<div class="loading"><div class="spinner"></div><p>Caricamento post...</p></div>'; 
+      
+      try{ 
+        console.log('📥 Loading posts from /api/posts...');
+        const res=await fetch('/api/posts'); 
+        const data=await res.json(); 
+        
+        if(res.ok){ 
+          posts=data.posts; 
+          console.log('📥 Posts loaded:', posts.length, 'posts');
+          
+          // Debug per video
+          const postsWithVideo = posts.filter(p => p.video_filename);
+          const postsWithImage = posts.filter(p => p.image_filename);
+          console.log('🎥 Posts with video:', postsWithVideo.length);
+          console.log('🖼️ Posts with image:', postsWithImage.length);
+          
+          if (postsWithVideo.length > 0) {
+            console.log('🔍 Video posts details:', postsWithVideo.map(p => ({
+              id: p.id,
+              video_filename: p.video_filename,
+              author: p.author.username
+            })));
+          }
+          
+          renderPosts(); 
+        } else { 
+          console.error('❌ Error loading posts:', data);
+          container.innerHTML=`<div class="alert alert-danger">Errore: ${data.error}</div>`; 
+        } 
+      } catch(e){ 
+        console.error('💥 Posts loading failed:', e);
+        container.innerHTML='<div class="alert alert-danger">Errore di connessione</div>'; 
+      } 
+    }
 
     function renderPosts(){ 
       const container=document.getElementById('posts-container'); 
@@ -1542,14 +1664,67 @@
         const deleteBtn = isAuthor ? `<button class="action-btn text-danger" onclick="deletePost(${post.id})" title="Elimina post"><i class="fas fa-trash me-1"></i>Elimina</button>` : ''; 
         const commentsCount = post.comments_count > 0 ? `(${post.comments_count})` : '';
         
-        // Media content
+        // Media content (immagini e video) - FIX COMPLETO!
         let mediaHTML = '';
-        if (post.attachments && post.attachments.length > 0) {
-          post.attachments.forEach(attachment => {
-            if (attachment.type === 'image') {
-              mediaHTML += `<img src="${attachment.url}" alt="Post image" class="img-fluid">`;
-            }
-          });
+        
+        console.log('🔍 Post media check:', {
+          id: post.id,
+          image_filename: post.image_filename,
+          video_filename: post.video_filename
+        });
+        
+        // Gestione immagini
+        if (post.image_filename) {
+          const imageUrl = `/uploads/${post.image_filename}`;
+          console.log('🖼️ Rendering image:', imageUrl);
+          mediaHTML += `
+            <div class="post-media">
+              <img src="${imageUrl}" alt="Post image" class="img-fluid" 
+                   style="max-width:100%; width:auto; height:auto; border-radius:12px; margin:1rem 0; box-shadow:0 4px 12px rgba(0,0,0,.3);" 
+                   onload="console.log('✅ Image loaded: ${imageUrl}')"
+                   onerror="console.log('❌ Image failed: ${imageUrl}')">
+            </div>
+          `;
+        }
+        
+        // Gestione video - SUPPORTO COMPLETO
+        if (post.video_filename) {
+          const videoUrl = `/uploads/${post.video_filename}`;
+          console.log('🎥 Rendering video:', videoUrl);
+          
+          // Determina il tipo MIME dal filename
+          const ext = post.video_filename.split('.').pop().toLowerCase();
+          let mimeType = 'video/mp4'; // default
+          
+          switch(ext) {
+            case 'mp4': mimeType = 'video/mp4'; break;
+            case 'webm': mimeType = 'video/webm'; break;
+            case 'avi': mimeType = 'video/x-msvideo'; break;
+            case 'mov': mimeType = 'video/quicktime'; break;
+            case 'wmv': mimeType = 'video/x-ms-wmv'; break;
+            case 'flv': mimeType = 'video/x-flv'; break;
+          }
+          
+          mediaHTML += `
+            <div class="post-media">
+              <video controls preload="metadata" class="img-fluid" 
+                     style="max-width:100%; width:100%; height:auto; border-radius:12px; margin:1rem 0; box-shadow:0 4px 12px rgba(0,0,0,.3); background:#000;"
+                     onloadstart="console.log('🎥 Video loading: ${videoUrl}')"
+                     onloadeddata="console.log('✅ Video loaded: ${videoUrl}')"
+                     onerror="console.log('❌ Video failed: ${videoUrl}')">
+                <source src="${videoUrl}" type="${mimeType}">
+                <source src="${videoUrl}" type="video/mp4">
+                <source src="${videoUrl}" type="video/webm">
+                <p style="color:#fff; text-align:center; padding:20px;">
+                  Il tuo browser non supporta il tag video. 
+                  <a href="${videoUrl}" style="color:#667eea;">Scarica il video</a>
+                </p>
+              </video>
+              <div class="video-info text-muted small mt-2">
+                🎥 Video • ${ext.toUpperCase()} • <a href="${videoUrl}" target="_blank">Apri in nuova scheda</a>
+              </div>
+            </div>
+          `;
         }
         
         return `
