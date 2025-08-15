@@ -15,7 +15,25 @@ import uuid
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'courseconnect-super-secret-key-2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///courseconnect.db'
+
+# ======================================== 
+# DATABASE CONFIGURATION per RAILWAY
+# ======================================== 
+
+# Ottieni DATABASE_URL da Railway (PostgreSQL) o usa SQLite per sviluppo locale
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    # Su Railway con PostgreSQL
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+    print("🚀 Usando PostgreSQL su Railway")
+else:
+    # Sviluppo locale con SQLite
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///courseconnect.db'
+    print("🏠 Usando SQLite per sviluppo locale")
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Upload configuration
@@ -1456,18 +1474,23 @@ def health_check():
         return jsonify({'error': f'Errore del sistema: {str(e)}'}), 500
 
 # ======================================== 
-# DATABASE INITIALIZATION 
+# DATABASE INITIALIZATION per RAILWAY
 # ======================================== 
 
 def init_db():
     """Inizializza il database con dati di esempio"""
-    with app.app_context():
+    try:
+        print("🔄 Inizializzazione database...")
+        
         # Crea tutte le tabelle
         db.create_all()
+        print("✅ Tabelle create!")
         
         # Verifica se admin esiste già
         admin = User.query.filter_by(username='admin').first()
         if not admin:
+            print("🔄 Creazione admin e dati di esempio...")
+            
             # Crea account admin
             admin = User(
                 username='admin',
@@ -1481,6 +1504,7 @@ def init_db():
             )
             db.session.add(admin)
             db.session.commit()
+            print("✅ Admin creato!")
             
             # Crea alcuni corsi di esempio
             sample_courses = [
@@ -1530,6 +1554,7 @@ def init_db():
                 db.session.add(course)
             
             db.session.commit()
+            print("✅ Corsi di esempio creati!")
             
             # Aggiungi lezioni di esempio per il corso Hacking
             hacking_course = Course.query.filter_by(title='Corso Hacking Etico Completo').first()
@@ -1973,10 +1998,26 @@ Prossima lezione: JavaScript per interattività!''',
                     db.session.add(lesson)
                 
                 db.session.commit()
+                print("✅ Lezioni di esempio create!")
             
             print("✅ Database inizializzato con admin e corsi di esempio!")
             print("👤 Admin: username='admin', password='admin123'")
+        else:
+            print("✅ Database già inizializzato!")
+            
+    except Exception as e:
+        print(f"❌ Errore durante l'inizializzazione: {e}")
+        db.session.rollback()
+
+# ======================================== 
+# AVVIO APPLICAZIONE 
+# ======================================== 
 
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Inizializza il database
+    with app.app_context():
+        init_db()
+    
+    # Avvia l'applicazione
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
