@@ -1,104 +1,800 @@
 # ========================================
-# CourseConnect - Social Network per Corsisti
+# CourseConnect - Social Network per Corsisti  
 # app.py - Backend Flask con Sistema Completo
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import os
-import uuid
-from datetime import datetime, timedelta
-import logging
-import mimetypes
+from datetime import datetime
+import os, json
+
+# ========================================
+# FLASK APP & CONFIG
+# ========================================
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'courseconnect-secret-key-2024'
 
-# Database Configuration
-if os.environ.get('DATABASE_URL'):
-    # Production PostgreSQL
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-else:
-    # Development SQLite
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///courseconnect.db'
+# Secret key (in produzione sovrascrivi con env var)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'courseconnect-secret-key-2024')
 
+# --- DATABASE_URL ---
+# Default: SQLite in path ASSOLUTO nella working dir (evita "readonly database" su Render)
+default_sqlite_path = os.path.join(os.getcwd(), 'courseconnect.db')
+db_url = os.environ.get('DATABASE_URL', f'sqlite:///{default_sqlite_path}')
+
+# Render Postgres spesso usa "postgres://", SQLAlchemy vuole "postgresql+psycopg2://"
+if db_url.startswith('postgres://'):
+    db_url = db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# File Upload Configuration
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
-ALLOWED_EXTENSIONS = {
-    'images': {'png', 'jpg', 'jpeg', 'gif', 'webp'},
-    'videos': {'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'}
-}
+# Engine options (pool, keep-alive)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = app.config.get('SQLALCHEMY_ENGINE_OPTIONS', {})
+app.config['SQLALCHEMY_ENGINE_OPTIONS'].update({
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+})
 
-# Ensure upload directories exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'videos'), exist_ok=True)
+# SQLite + worker async: disabilita check_same_thread
+if db_url.startswith('sqlite'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'].setdefault('connect_args', {})['check_same_thread'] = False
 
-# Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Cookie di sessione più sicuri (su Render è HTTPS)
+app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
+app.config.setdefault('SESSION_COOKIE_SECURE', True)
+
+# Uploads (immagini + video)
+UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 db = SQLAlchemy(app)
 
 # ========================================
-# MODELS
+# MODELLI DATABASE
 # ========================================
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
+    nome = db.Column(db.String(100), nullable=False)
+    cognome = db.Column(db.String(100), nullable=False)
+    corso = db.Column(db.String(200), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
     bio = db.Column(db.Text, default='')
-    course = db.Column(db.String(200), default='')
+    avatar_url = db.Column(db.String(500), default='')
+    is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    posts = db.relationship('Post', backref='author', lazy=True, cascade='all, delete-orphan')
-    comments = db.relationship('Comment', backref='author', lazy=True, cascade='all, delete-orphan')
-    likes = db.relationship('Like', backref='user', lazy=True, cascade='all, delete-orphan')
-    reviews = db.relationship('Review', backref='author', lazy=True, cascade='all, delete-orphan')
+
+    posts = db.relationship('Post', backref='author', lazy='dynamic', cascade='all, delete-orphan')
+    comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')
+    likes = db.relationship('Like', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    reviews = db.relationship('Review', backref='author', lazy='dynamic', cascade='all, delete-orphan')
+
+    def set_password(self, password: str):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
+
+    def get_avatar_color(self):
+        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F']
+        return colors[len(self.username) % len(colors)]
+
+    def get_initials(self):
+        return f"{self.nome[0]}{self.cognome[0]}".upper() if self.nome and self.cognome else self.username[0].upper()
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'nome': self.nome,
+            'cognome': self.cognome,
+            'corso': self.corso,
+            'bio': self.bio,
+            'avatar_url': self.avatar_url,
+            'avatar_color': self.get_avatar_color(),
+            'initials': self.get_initials(),
+            'created_at': (self.created_at or datetime.utcnow()).isoformat()
+        }
+
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     image_filename = db.Column(db.String(255))
-    video_filename = db.Column(db.String(255))  # Nuovo campo per video
+    video_filename = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    comments_count = db.Column(db.Integer, default=0)
-    likes_count = db.Column(db.Integer, default=0)
-    
-    # Relationships
-    comments = db.relationship('Comment', backref='post', lazy=True, cascade='all, delete-orphan')
-    likes = db.relationship('Like', backref='post', lazy=True, cascade='all, delete-orphan')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+    likes = db.relationship('Like', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+
+    def get_likes_count(self):
+        return self.likes.count()
+
+    def is_liked_by(self, user):
+        if not user:
+            return False
+        return self.likes.filter_by(user_id=user.id).first() is not None
+
+    def to_dict(self, current_user=None):
+        return {
+            'id': self.id,
+            'content': self.content,
+            'image_filename': self.image_filename,
+            'video_filename': self.video_filename,
+            'created_at': (self.created_at or datetime.utcnow()).isoformat(),
+            'author': self.author.to_dict() if self.author else {},
+            'likes_count': self.get_likes_count(),
+            'is_liked': self.is_liked_by(current_user),
+            'comments_count': self.comments.count(),
+            'user_can_delete': current_user and (current_user.id == self.user_id or current_user.is_admin)
+        }
+
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Like(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'content': self.content,
+            'created_at': (self.created_at or datetime.utcnow()).isoformat(),
+            'author': self.author.to_dict() if self.author else {},
+            'post_id': self.post_id,
+            'user_can_delete': True  # Will be updated by frontend logic
+        }
+
+
+class Like(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    __table_args__ = (db.UniqueConstraint('user_id', 'post_id'),)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
+
 
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    course_name = db.Column(db.String(200), nullable=False)
-    rating = db.Column(db.Integer, nullable=False)
-    comment = db.Column(db.Text)
+    text = db.Column(db.Text, nullable=False)
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stelle
+    photo_url = db.Column(db.String(500), nullable=False)
+    location = db.Column(db.String(100), default='')
+    is_approved = db.Column(db.Boolean, default=True)  # Per moderazione futura
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': f"{self.author.nome} {self.author.cognome}",
+            'course': f"{self.author.corso}{' • ' + self.location if self.location else ''}",
+            'text': self.text,
+            'rating': self.rating,
+            'photo': self.photo_url,
+            'created_at': (self.created_at or datetime.utcnow()).isoformat(),
+            'isStatic': False
+        }
+
+# ========================================
+# UTILITY
+# ========================================
+
+def get_current_user():
+    """Ottieni utente corrente dalla sessione"""
+    uid = session.get('user_id')
+    if not uid:
+        return None
+    return db.session.get(User, uid)
+
+
+def _seed_data():
+    """Popola solo dati essenziali (NO utenti demo - solo admin)."""
+    # Crea solo admin se non esiste (per gestione piattaforma)
+    admin = User.query.filter_by(username='admin').first()
+    if not admin:
+        admin = User(
+            username='admin',
+            email='admin@courseconnect.it',
+            nome='Amministratore',
+            cognome='CourseConnect',
+            corso='Gestione Piattaforma',
+            is_admin=True,
+            bio='Gestisco la piattaforma CourseConnect per garantire la migliore esperienza a tutti i corsisti.'
+        )
+        admin.set_password('admin123')
+        db.session.add(admin)
+        db.session.commit()
+        
+        # Post di benvenuto dell'admin (solo se non ci sono altri post)
+        if Post.query.count() == 0:
+            welcome_post = Post(
+                content='''🎉 **Benvenuti in CourseConnect!**
+
+Il social network dedicato ai corsisti è finalmente online! 🚀
+
+✨ **Cosa puoi fare:**
+- 👥 **Connetterti** con altri corsisti da tutta Italia
+- 📝 **Condividere** progetti, esperienze e successi
+- 💡 **Scambiare** consigli, risorse e opportunità
+- 📸 **Caricare immagini e video** nei tuoi post
+- ❤️ **Mettere like** e commentare
+- 🔗 **Creare collegamenti** con la community
+- ⭐ **Lasciare recensioni** per aiutare altri corsisti
+
+**Inizia subito a condividere la tua esperienza di apprendimento!**
+
+Raccontaci:
+- Su cosa stai lavorando
+- Quali sfide stai affrontando  
+- I tuoi successi e traguardi
+- Consigli per altri corsisti
+
+*Insieme possiamo crescere più velocemente!* 📚✨
+
+*Buon studio a tutti!*
+**- Team CourseConnect**''',
+                user_id=admin.id
+            )
+            db.session.add(welcome_post)
+            db.session.commit()
+            print("✅ Post di benvenuto creato!")
+
+
+def create_tables():
+    """Crea tabelle database e fa seed minimo (solo admin)."""
+    db.create_all()
+    _seed_data()
+
+
+def _payload():
+    """
+    Estrae i dati sia da JSON che da form-data/x-www-form-urlencoded
+    e normalizza chiavi alternative dal frontend.
+    """
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    elif request.form:
+        data = request.form.to_dict()
+    else:
+        try:
+            data = json.loads((request.data or b'').decode('utf-8') or '{}')
+        except Exception:
+            data = {}
+
+    # Alias comuni (inglese -> italiano)
+    alias = {
+        'firstName': 'nome',
+        'lastName': 'cognome',
+        'course': 'corso',
+        'bioText': 'bio',
+        'password1': 'password',
+        'password_confirm': 'password',
+    }
+    for k, v in list(data.items()):
+        if k in alias and alias[k] not in data:
+            data[alias[k]] = v
+
+    # Trim stringhe
+    for k, v in list(data.items()):
+        if isinstance(v, str):
+            data[k] = v.strip()
+
+    return data
+
+
+def _allowed_file(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def get_file_type(filename):
+    """Determina se un file è immagine o video"""
+    if not filename:
+        return None
+    ext = filename.rsplit('.', 1)[1].lower()
+    if ext in {'png', 'jpg', 'jpeg', 'gif', 'webp'}:
+        return 'image'
+    elif ext in {'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'}:
+        return 'video'
+    return None
+
+# ========================================
+# API ROUTES
+# ========================================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check per monitoring"""
+    try:
+        db.session.execute(text('SELECT 1'))
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'users_count': User.query.count(),
+            'posts_count': Post.query.count(),
+            'comments_count': Comment.query.count(),
+            'reviews_count': Review.query.count(),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e), 'timestamp': datetime.utcnow().isoformat()}), 500
+
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    """Registrazione nuovo utente (accetta JSON o form, con alias)"""
+    try:
+        data = _payload()
+        required = ['username', 'email', 'nome', 'cognome', 'corso', 'password']
+        missing = [k for k in required if not (data.get(k) or '').strip()]
+        if missing:
+            return jsonify({'error': 'Tutti i campi sono obbligatori', 'missing_fields': missing}), 400
+        if len(data['password']) < 6:
+            return jsonify({'error': 'La password deve avere almeno 6 caratteri'}), 400
+
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({'error': 'Username già in uso'}), 400
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({'error': 'Email già registrata'}), 400
+
+        user = User(
+            username=data['username'],
+            email=data['email'],
+            nome=data['nome'],
+            cognome=data['cognome'],
+            corso=data['corso'],
+            bio=(data.get('bio') or '')
+        )
+        user.set_password(data['password'])
+        db.session.add(user)
+        db.session.commit()
+
+        session['user_id'] = user.id
+        return jsonify({'message': 'Registrazione completata', 'user': user.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore registrazione: {str(e)}'}), 500
+
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    """Login utente (accetta JSON o form)"""
+    try:
+        data = _payload()
+        username = (data.get('username') or '')
+        password = (data.get('password') or '')
+        if not username or not password:
+            return jsonify({'error': 'Username e password richiesti'}), 400
+
+        user = User.query.filter_by(username=username).first()
+        if not user or not user.check_password(password):
+            return jsonify({'error': 'Credenziali non valide'}), 401
+
+        session['user_id'] = user.id
+        return jsonify({'message': 'Login effettuato', 'user': user.to_dict()})
+    except Exception as e:
+        return jsonify({'error': f'Errore login: {str(e)}'}), 500
+
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    """Logout utente"""
+    session.pop('user_id', None)
+    return jsonify({'message': 'Logout effettuato'})
+
+
+@app.route('/api/me', methods=['GET'])
+def get_current_user_info():
+    """
+    Informazioni utente corrente.
+    Evitiamo 401 in console: se non autenticato, 200 con authenticated:false.
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({'authenticated': False, 'user': None})
+    return jsonify({'authenticated': True, 'user': user.to_dict()})
+
+
+# ======= USERS API =======
+@app.route('/api/users', methods=['GET'])
+def list_users():
+    """Elenco ultimi utenti attivi (per sidebar)."""
+    try:
+        limit = request.args.get('limit', 20, type=int)
+        q = (request.args.get('q') or '').strip()
+
+        query = User.query.filter_by(is_active=True)
+        if q:
+            like = f"%{q.lower()}%"
+            query = query.filter(
+                db.or_(
+                    db.func.lower(User.nome).like(like),
+                    db.func.lower(User.cognome).like(like),
+                    db.func.lower(User.username).like(like),
+                )
+            )
+        users = query.order_by(User.created_at.desc()).limit(limit).all()
+        return jsonify({'users': [u.to_dict() for u in users]})
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento utenti: {str(e)}'}), 500
+
+
+# ======= POSTS =======
+
+@app.route('/api/posts', methods=['GET'])
+def get_posts():
+    """Ottieni feed post (pubblico)"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        posts = Post.query.order_by(Post.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        current_user = get_current_user()
+        return jsonify({
+            'posts': [post.to_dict(current_user) for post in posts.items],
+            'has_next': posts.has_next,
+            'has_prev': posts.has_prev,
+            'page': page,
+            'total': posts.total
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento post: {str(e)}'}), 500
+
+
+@app.route('/api/posts', methods=['POST'])
+def create_post():
+    """Crea nuovo post (richiede login)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+            content = (data.get('content') or '').strip()
+            file = None
+        else:
+            content = request.form.get('content', '').strip()
+            file = request.files.get('file')
+
+        if not content:
+            return jsonify({'error': 'Contenuto post richiesto'}), 400
+        if len(content) > 4000:
+            return jsonify({'error': 'Post troppo lungo (max 4000 caratteri)'}), 400
+
+        post = Post(content=content, user_id=user.id)
+        
+        # Handle file upload
+        if file and file.filename:
+            file_type = get_file_type(file.filename)
+            if file_type and _allowed_file(file.filename):
+                import uuid
+                filename = str(uuid.uuid4()) + '.' + file.filename.rsplit('.', 1)[1].lower()
+                
+                if file_type == 'video':
+                    # Save in videos subfolder
+                    video_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'videos')
+                    os.makedirs(video_folder, exist_ok=True)
+                    filepath = os.path.join(video_folder, filename)
+                    post.video_filename = f'videos/{filename}'
+                else:
+                    # Save image in main folder
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    post.image_filename = filename
+                
+                file.save(filepath)
+            else:
+                return jsonify({'error': 'Formato file non supportato'}), 400
+
+        db.session.add(post)
+        db.session.commit()
+
+        return jsonify({'message': 'Post creato', 'post': post.to_dict(user)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore creazione post: {str(e)}'}), 500
+
+
+@app.route('/api/posts/<int:post_id>/like', methods=['POST'])
+def toggle_like(post_id):
+    """Metti/Togli like a post (richiede login)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        post = db.session.get(Post, post_id)
+        if not post:
+            return jsonify({'error': 'Post non trovato'}), 404
+
+        existing_like = Like.query.filter_by(user_id=user.id, post_id=post_id).first()
+        if existing_like:
+            db.session.delete(existing_like)
+            action = 'removed'
+        else:
+            db.session.add(Like(user_id=user.id, post_id=post_id))
+            action = 'added'
+
+        db.session.commit()
+        return jsonify({
+            'action': action,
+            'likes_count': post.get_likes_count(),
+            'is_liked': post.is_liked_by(user)
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore like: {str(e)}'}), 500
+
+
+@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
+def delete_post(post_id):
+    """Elimina post (solo l'autore può eliminare)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        post = db.session.get(Post, post_id)
+        if not post:
+            return jsonify({'error': 'Post non trovato'}), 404
+
+        # Solo l'autore o admin possono eliminare
+        if post.user_id != user.id and not user.is_admin:
+            return jsonify({'error': 'Non hai i permessi per eliminare questo post'}), 403
+
+        # Elimina file se esistono
+        if post.image_filename:
+            try:
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.image_filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f"Could not delete image file: {e}")
+
+        if post.video_filename:
+            try:
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.video_filename)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f"Could not delete video file: {e}")
+
+        # Elimina il post (cascade eliminerà automaticamente like e commenti)
+        db.session.delete(post)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Post eliminato con successo',
+            'deleted_post_id': post_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore eliminazione post: {str(e)}'}), 500
+
+
+# ======= COMMENTI API =======
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
+def get_comments(post_id):
+    """Ottieni tutti i commenti di un post specifico"""
+    try:
+        post = db.session.get(Post, post_id)
+        if not post:
+            return jsonify({'error': 'Post non trovato'}), 404
+
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)  # Molti commenti per pagina
+        
+        # Ordina commenti dal più vecchio al più nuovo (conversazione cronologica)
+        comments_query = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.asc())
+        
+        # Paginazione per post con molti commenti
+        comments = comments_query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        return jsonify({
+            'comments': [comment.to_dict() for comment in comments.items],
+            'total': comments.total,
+            'page': page,
+            'has_next': comments.has_next,
+            'has_prev': comments.has_prev,
+            'post_id': post_id
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento commenti: {str(e)}'}), 500
+
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def create_comment(post_id):
+    """Crea nuovo commento su un post (richiede login)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto per commentare'}), 401
+
+        post = db.session.get(Post, post_id)
+        if not post:
+            return jsonify({'error': 'Post non trovato'}), 404
+
+        data = _payload()
+        content = (data.get('content') or '').strip()
+        
+        if not content:
+            return jsonify({'error': 'Contenuto del commento richiesto'}), 400
+        if len(content) > 1000:
+            return jsonify({'error': 'Commento troppo lungo (max 1000 caratteri)'}), 400
+
+        comment = Comment(
+            content=content,
+            user_id=user.id,
+            post_id=post_id
+        )
+        db.session.add(comment)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Commento aggiunto con successo',
+            'comment': comment.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore creazione commento: {str(e)}'}), 500
+
+
+@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
+def delete_comment(comment_id):
+    """Elimina commento (solo l'autore o admin può eliminare)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        comment = db.session.get(Comment, comment_id)
+        if not comment:
+            return jsonify({'error': 'Commento non trovato'}), 404
+
+        # Solo l'autore del commento o admin possono eliminare
+        if comment.user_id != user.id and not user.is_admin:
+            return jsonify({'error': 'Non hai i permessi per eliminare questo commento'}), 403
+
+        # Elimina il commento
+        db.session.delete(comment)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Commento eliminato con successo',
+            'deleted_comment_id': comment_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore eliminazione commento: {str(e)}'}), 500
+
+
+# ======= RECENSIONI API =======
+@app.route('/api/reviews', methods=['GET'])
+def get_reviews():
+    """Ottieni tutte le recensioni approvate"""
+    try:
+        reviews = Review.query.filter_by(is_approved=True).order_by(Review.created_at.desc()).all()
+        return jsonify({
+            'reviews': [review.to_dict() for review in reviews],
+            'total': len(reviews)
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento recensioni: {str(e)}'}), 500
+
+
+@app.route('/api/reviews', methods=['POST'])
+def create_review():
+    """Crea nuova recensione (richiede login)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+
+        data = _payload()
+        required = ['text', 'rating', 'photo_url']
+        missing = [k for k in required if not data.get(k)]
+        if missing:
+            return jsonify({'error': 'Tutti i campi obbligatori richiesti', 'missing_fields': missing}), 400
+
+        text = data['text'].strip()
+        rating = int(data['rating'])
+        photo_url = data['photo_url']
+        location = (data.get('location') or '').strip()
+
+        if not text or len(text) > 500:
+            return jsonify({'error': 'Testo recensione richiesto (max 500 caratteri)'}), 400
+        if rating < 1 or rating > 5:
+            return jsonify({'error': 'Rating deve essere tra 1 e 5 stelle'}), 400
+
+        # Controlla se l'utente ha già lasciato una recensione
+        existing_review = Review.query.filter_by(user_id=user.id).first()
+        if existing_review:
+            return jsonify({'error': 'Hai già lasciato una recensione'}), 400
+
+        review = Review(
+            text=text,
+            rating=rating,
+            photo_url=photo_url,
+            location=location,
+            user_id=user.id
+        )
+        db.session.add(review)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Recensione pubblicata con successo!',
+            'review': review.to_dict()
+        })
+    except ValueError:
+        return jsonify({'error': 'Rating deve essere un numero valido'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore creazione recensione: {str(e)}'}), 500
+
+
+# ======= UPLOADS =======
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=False)
+
+@app.route('/static/uploads/<path:filename>')
+def static_uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=False)
+
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Login richiesto'}), 401
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nessun file nel payload (campo "file")'}), 400
+
+    f = request.files['file']
+    if f.filename == '':
+        return jsonify({'error': 'Filename vuoto'}), 400
+
+    if not _allowed_file(f.filename):
+        return jsonify({'error': 'Estensione non permessa'}), 400
+
+    base = secure_filename(f.filename)
+    name, ext = os.path.splitext(base)
+    ts = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+    final_name = f"{user.id}_{ts}{ext.lower()}"
+
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], final_name)
+    f.save(save_path)
+
+    file_url = f"/uploads/{final_name}"
+    return jsonify({'url': file_url, 'filename': base})
+
+
+# ========================================
+# ACCOUNT DELETION API
+# ========================================
 
 class DeletedAccount(db.Model):
     """Modello per tracciare account eliminati e feedback"""
@@ -109,163 +805,15 @@ class DeletedAccount(db.Model):
     feedback = db.Column(db.Text)
     deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# ========================================
-# HELPER FUNCTIONS
-# ========================================
-
-def allowed_file(filename, file_type):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS[file_type]
-
-def get_file_type(filename):
-    """Determina se un file è immagine o video"""
-    if not filename:
-        return None
-    ext = filename.rsplit('.', 1)[1].lower()
-    if ext in ALLOWED_EXTENSIONS['images']:
-        return 'image'
-    elif ext in ALLOWED_EXTENSIONS['videos']:
-        return 'video'
-    return None
-
-def create_tables():
-    """Crea tutte le tabelle se non esistono"""
-    try:
-        with app.app_context():
-            db.create_all()
-            
-            # Crea admin di default se non esiste
-            admin_user = User.query.filter_by(username='admin').first()
-            if not admin_user:
-                admin_user = User(
-                    username='admin',
-                    email='admin@courseconnect.it',
-                    password_hash=generate_password_hash('admin123'),
-                    bio='Amministratore di CourseConnect',
-                    course='Computer Science'
-                )
-                db.session.add(admin_user)
-                
-                # Post di benvenuto
-                welcome_post = Post(
-                    user_id=1,
-                    content='🎉 Benvenuti su CourseConnect! \n\nQuesta è la piattaforma dove i corsisti possono:\n\n✅ Condividere esperienze di studio\n✅ Pubblicare foto e video\n✅ Commentare e interagire\n✅ Recensire corsi\n✅ Fare networking\n\nInizia a condividere la tua esperienza di studio! 📚'
-                )
-                db.session.add(welcome_post)
-                
-                db.session.commit()
-                logger.info("✅ Admin user and welcome post created")
-                
-    except Exception as e:
-        logger.error(f"❌ Error creating tables: {e}")
-
-# ========================================
-# ROUTES
-# ========================================
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/static/uploads/<path:filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-# ========================================
-# AUTH ROUTES
-# ========================================
-
-@app.route('/api/register', methods=['POST'])
-def register():
-    try:
-        data = request.get_json()
-        
-        # Validazioni
-        if User.query.filter_by(username=data['username']).first():
-            return jsonify({'error': 'Username già esistente'}), 400
-        
-        if User.query.filter_by(email=data['email']).first():
-            return jsonify({'error': 'Email già registrata'}), 400
-        
-        # Crea nuovo utente
-        user = User(
-            username=data['username'],
-            email=data['email'],
-            password_hash=generate_password_hash(data['password']),
-            bio=data.get('bio', ''),
-            course=data.get('course', '')
-        )
-        
-        db.session.add(user)
-        db.session.commit()
-        
-        session['user_id'] = user.id
-        session['username'] = user.username
-        
-        return jsonify({
-            'success': True,
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'bio': user.bio,
-                'course': user.course
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Registration error: {e}")
-        return jsonify({'error': 'Errore durante la registrazione'}), 500
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    try:
-        data = request.get_json()
-        
-        user = User.query.filter_by(username=data['username']).first()
-        
-        if user and check_password_hash(user.password_hash, data['password']):
-            session['user_id'] = user.id
-            session['username'] = user.username
-            
-            return jsonify({
-                'success': True,
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'bio': user.bio,
-                    'course': user.course
-                }
-            })
-        else:
-            return jsonify({'error': 'Credenziali non valide'}), 401
-            
-    except Exception as e:
-        logger.error(f"Login error: {e}")
-        return jsonify({'error': 'Errore durante il login'}), 500
-
-@app.route('/api/logout', methods=['POST'])
-def logout():
-    session.clear()
-    return jsonify({'success': True})
-
-# ========================================
-# ACCOUNT DELETION ROUTES
-# ========================================
-
 @app.route('/api/delete-account', methods=['POST'])
 def delete_account():
     """Elimina account utente con feedback"""
     try:
-        if 'user_id' not in session:
+        user = get_current_user()
+        if not user:
             return jsonify({'error': 'Non autorizzato'}), 401
         
-        data = request.get_json()
-        user = User.query.get(session['user_id'])
-        
-        if not user:
-            return jsonify({'error': 'Utente non trovato'}), 404
+        data = _payload()
         
         # Salva feedback sull'eliminazione
         deleted_account = DeletedAccount(
@@ -283,7 +831,7 @@ def delete_account():
         # Pulisci sessione
         session.clear()
         
-        logger.info(f"Account deleted: {user.username}, Reason: {data.get('reason', 'No reason')}")
+        print(f"Account deleted: {user.username}, Reason: {data.get('reason', 'No reason')}")
         
         return jsonify({
             'success': True,
@@ -291,401 +839,40 @@ def delete_account():
         })
         
     except Exception as e:
-        logger.error(f"Account deletion error: {e}")
+        db.session.rollback()
+        print(f"Account deletion error: {e}")
         return jsonify({'error': 'Errore durante l\'eliminazione dell\'account'}), 500
 
-# ========================================
-# POST ROUTES
-# ========================================
-
-@app.route('/api/posts', methods=['GET'])
-def get_posts():
-    try:
-        posts = Post.query.order_by(Post.created_at.desc()).all()
-        posts_data = []
-        
-        for post in posts:
-            # Controlla se l'utente loggato ha messo like
-            user_liked = False
-            if 'user_id' in session:
-                user_liked = Like.query.filter_by(
-                    user_id=session['user_id'], 
-                    post_id=post.id
-                ).first() is not None
-            
-            posts_data.append({
-                'id': post.id,
-                'user_id': post.user_id,
-                'username': post.author.username,
-                'content': post.content,
-                'image_filename': post.image_filename,
-                'video_filename': post.video_filename,  # Includi video
-                'created_at': post.created_at.isoformat(),
-                'likes_count': post.likes_count,
-                'comments_count': post.comments_count,
-                'user_liked': user_liked,
-                'user_can_delete': 'user_id' in session and (
-                    session['user_id'] == post.user_id or 
-                    session.get('username') == 'admin'
-                )
-            })
-        
-        return jsonify({'posts': posts_data})
-        
-    except Exception as e:
-        logger.error(f"Get posts error: {e}")
-        return jsonify({'error': 'Errore nel caricamento dei post'}), 500
-
-@app.route('/api/posts', methods=['POST'])
-def create_post():
-    try:
-        if 'user_id' not in session:
-            return jsonify({'error': 'Devi essere loggato per pubblicare'}), 401
-        
-        content = request.form.get('content')
-        if not content or len(content.strip()) == 0:
-            return jsonify({'error': 'Il contenuto del post è richiesto'}), 400
-        
-        # Crea il post
-        post = Post(
-            user_id=session['user_id'],
-            content=content
-        )
-        
-        # Gestisci upload file (immagine o video)
-        if 'file' in request.files:
-            file = request.files['file']
-            if file and file.filename:
-                file_type = get_file_type(file.filename)
-                
-                if file_type and allowed_file(file.filename, file_type + 's'):
-                    # Genera nome sicuro
-                    filename = str(uuid.uuid4()) + '.' + file.filename.rsplit('.', 1)[1].lower()
-                    
-                    if file_type == 'video':
-                        # Salva in sottocartella video
-                        filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'videos', filename)
-                        post.video_filename = f'videos/{filename}'
-                    else:
-                        # Salva immagine nella cartella principale
-                        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                        post.image_filename = filename
-                    
-                    file.save(filepath)
-                    logger.info(f"File uploaded: {filename}, Type: {file_type}")
-                else:
-                    return jsonify({'error': 'Formato file non supportato'}), 400
-        
-        db.session.add(post)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'post': {
-                'id': post.id,
-                'user_id': post.user_id,
-                'username': post.author.username,
-                'content': post.content,
-                'image_filename': post.image_filename,
-                'video_filename': post.video_filename,
-                'created_at': post.created_at.isoformat(),
-                'likes_count': 0,
-                'comments_count': 0,
-                'user_liked': False,
-                'user_can_delete': True
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Create post error: {e}")
-        return jsonify({'error': 'Errore durante la pubblicazione'}), 500
-
-@app.route('/api/posts/<int:post_id>', methods=['DELETE'])
-def delete_post(post_id):
-    try:
-        if 'user_id' not in session:
-            return jsonify({'error': 'Non autorizzato'}), 401
-        
-        post = Post.query.get_or_404(post_id)
-        
-        # Verifica permessi
-        if session['user_id'] != post.user_id and session.get('username') != 'admin':
-            return jsonify({'error': 'Non puoi eliminare questo post'}), 403
-        
-        # Elimina file se esistono
-        if post.image_filename:
-            try:
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.image_filename)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                logger.warning(f"Could not delete image file: {e}")
-        
-        if post.video_filename:
-            try:
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], post.video_filename)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                logger.warning(f"Could not delete video file: {e}")
-        
-        db.session.delete(post)
-        db.session.commit()
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Delete post error: {e}")
-        return jsonify({'error': 'Errore durante l\'eliminazione'}), 500
 
 # ========================================
-# COMMENT ROUTES
+# WEB ROUTES
 # ========================================
 
-@app.route('/api/posts/<int:post_id>/comments', methods=['GET'])
-def get_comments(post_id):
-    try:
-        post = Post.query.get_or_404(post_id)
-        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.asc()).all()
-        
-        comments_data = []
-        for comment in comments:
-            comments_data.append({
-                'id': comment.id,
-                'user_id': comment.user_id,
-                'username': comment.author.username,
-                'content': comment.content,
-                'created_at': comment.created_at.isoformat(),
-                'user_can_delete': 'user_id' in session and (
-                    session['user_id'] == comment.user_id or 
-                    session.get('username') == 'admin'
-                )
-            })
-        
-        return jsonify({'comments': comments_data})
-        
-    except Exception as e:
-        logger.error(f"Get comments error: {e}")
-        return jsonify({'error': 'Errore nel caricamento dei commenti'}), 500
+@app.route('/')
+def home():
+    """Homepage"""
+    return render_template('index.html')
 
-@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
-def create_comment(post_id):
-    try:
-        if 'user_id' not in session:
-            return jsonify({'error': 'Devi essere loggato per commentare'}), 401
-        
-        data = request.get_json()
-        content = data.get('content', '').strip()
-        
-        if not content:
-            return jsonify({'error': 'Il contenuto del commento è richiesto'}), 400
-        
-        if len(content) > 1000:
-            return jsonify({'error': 'Il commento è troppo lungo (max 1000 caratteri)'}), 400
-        
-        post = Post.query.get_or_404(post_id)
-        
-        comment = Comment(
-            post_id=post_id,
-            user_id=session['user_id'],
-            content=content
-        )
-        
-        db.session.add(comment)
-        
-        # Aggiorna contatore commenti
-        post.comments_count = Comment.query.filter_by(post_id=post_id).count() + 1
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'comment': {
-                'id': comment.id,
-                'user_id': comment.user_id,
-                'username': comment.author.username,
-                'content': comment.content,
-                'created_at': comment.created_at.isoformat(),
-                'user_can_delete': True
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Create comment error: {e}")
-        return jsonify({'error': 'Errore durante la creazione del commento'}), 500
-
-@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
-def delete_comment(comment_id):
-    try:
-        if 'user_id' not in session:
-            return jsonify({'error': 'Non autorizzato'}), 401
-        
-        comment = Comment.query.get_or_404(comment_id)
-        
-        # Verifica permessi
-        if session['user_id'] != comment.user_id and session.get('username') != 'admin':
-            return jsonify({'error': 'Non puoi eliminare questo commento'}), 403
-        
-        post_id = comment.post_id
-        db.session.delete(comment)
-        
-        # Aggiorna contatore commenti
-        post = Post.query.get(post_id)
-        if post:
-            post.comments_count = Comment.query.filter_by(post_id=post_id).count() - 1
-        
-        db.session.commit()
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Delete comment error: {e}")
-        return jsonify({'error': 'Errore durante l\'eliminazione del commento'}), 500
 
 # ========================================
-# LIKE ROUTES
+# STARTUP: crea tabelle anche con gunicorn
 # ========================================
 
-@app.route('/api/posts/<int:post_id>/like', methods=['POST'])
-def toggle_like(post_id):
-    try:
-        if 'user_id' not in session:
-            return jsonify({'error': 'Devi essere loggato per mettere like'}), 401
-        
-        post = Post.query.get_or_404(post_id)
-        existing_like = Like.query.filter_by(
-            user_id=session['user_id'], 
-            post_id=post_id
-        ).first()
-        
-        if existing_like:
-            # Rimuovi like
-            db.session.delete(existing_like)
-            post.likes_count = max(0, post.likes_count - 1)
-            action = 'removed'
-        else:
-            # Aggiungi like
-            new_like = Like(user_id=session['user_id'], post_id=post_id)
-            db.session.add(new_like)
-            post.likes_count += 1
-            action = 'added'
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'action': action,
-            'likes_count': post.likes_count
-        })
-        
-    except Exception as e:
-        logger.error(f"Toggle like error: {e}")
-        return jsonify({'error': 'Errore durante l\'operazione'}), 500
+with app.app_context():
+    create_tables()
+
 
 # ========================================
-# USER ROUTES
+# DEV ENTRYPOINT (esecuzione locale)
 # ========================================
-
-@app.route('/api/users', methods=['GET'])
-def get_users():
-    try:
-        users = User.query.order_by(User.created_at.desc()).all()
-        users_data = []
-        
-        for user in users:
-            users_data.append({
-                'id': user.id,
-                'username': user.username,
-                'bio': user.bio,
-                'course': user.course,
-                'created_at': user.created_at.isoformat(),
-                'posts_count': Post.query.filter_by(user_id=user.id).count()
-            })
-        
-        return jsonify({'users': users_data})
-        
-    except Exception as e:
-        logger.error(f"Get users error: {e}")
-        return jsonify({'error': 'Errore nel caricamento degli utenti'}), 500
-
-@app.route('/api/user/current', methods=['GET'])
-def get_current_user():
-    if 'user_id' not in session:
-        return jsonify({'logged_in': False})
-    
-    user = User.query.get(session['user_id'])
-    if not user:
-        session.clear()
-        return jsonify({'logged_in': False})
-    
-    return jsonify({
-        'logged_in': True,
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'bio': user.bio,
-            'course': user.course
-        }
-    })
-
-# ========================================
-# REVIEW ROUTES
-# ========================================
-
-@app.route('/api/reviews', methods=['GET'])
-def get_reviews():
-    try:
-        reviews = Review.query.order_by(Review.created_at.desc()).all()
-        reviews_data = []
-        
-        for review in reviews:
-            reviews_data.append({
-                'id': review.id,
-                'username': review.author.username,
-                'course_name': review.course_name,
-                'rating': review.rating,
-                'comment': review.comment,
-                'created_at': review.created_at.isoformat()
-            })
-        
-        return jsonify({'reviews': reviews_data})
-        
-    except Exception as e:
-        logger.error(f"Get reviews error: {e}")
-        return jsonify({'error': 'Errore nel caricamento delle recensioni'}), 500
-
-@app.route('/api/reviews', methods=['POST'])
-def create_review():
-    try:
-        if 'user_id' not in session:
-            return jsonify({'error': 'Devi essere loggato per scrivere una recensione'}), 401
-        
-        data = request.get_json()
-        
-        review = Review(
-            user_id=session['user_id'],
-            course_name=data['course_name'],
-            rating=int(data['rating']),
-            comment=data.get('comment', '')
-        )
-        
-        db.session.add(review)
-        db.session.commit()
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Create review error: {e}")
-        return jsonify({'error': 'Errore durante la creazione della recensione'}), 500
-
-# ========================================
-# INIT DATABASE
-# ========================================
-
-# Crea tabelle all'avvio
-create_tables()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    print(f"🚀 CourseConnect avviato su porta {port}")
+    print(f"📊 Admin: admin / admin123")
+    print(f"⭐ Sistema recensioni: attivo")
+    print(f"💬 Sistema commenti: attivo")
+    print(f"🎥 Upload video: attivo")
+    print(f"🗑️ Eliminazione account: attivo")
+    app.run(host='0.0.0.0', port=port, debug=debug)
