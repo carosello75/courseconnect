@@ -1,1663 +1,1672 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CourseConnect - Social Network per Corsisti</title>
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" />
-    <style>
-        :root {
-            --primary-color: #6366f1;
-            --secondary-color: #8b5cf6;
-            --accent-color: #06b6d4;
-            --bg-dark: #0f172a;
-            --bg-secondary: #1e293b;
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-secondary) 100%);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Contenimento globale per prevenire layout collapse */
-        .container-fluid, .container, .row, .col, [class*="col-"] {
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        /* Glass Effect */
-        .glass-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .glass-navbar {
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--glass-border);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Header */
-        .hero-section {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color), var(--accent-color));
-            padding: 4rem 0;
-            text-align: center;
-            background-size: 400% 400%;
-            animation: gradientShift 6s ease infinite;
-        }
-
-        @keyframes gradientShift {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-
-        .hero-title {
-            font-size: 3.5rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .hero-subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        /* Navigation */
-        .nav-pills .nav-link {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            color: var(--text-secondary);
-            margin: 0 0.5rem;
-            transition: all 0.3s ease;
-            border-radius: 15px;
-        }
-
-        .nav-pills .nav-link.active,
-        .nav-pills .nav-link:hover {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-        }
-
-        /* Forms */
-        .form-control, .form-select {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            color: var(--text-primary);
-            border-radius: 15px;
-            padding: 0.75rem 1rem;
-            backdrop-filter: blur(10px);
-        }
-
-        .form-control:focus, .form-select:focus {
-            background: var(--glass-bg);
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
-            color: var(--text-primary);
-        }
-
-        .form-control::placeholder {
-            color: var(--text-secondary);
-        }
-
-        /* Buttons */
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            border-radius: 15px;
-            padding: 0.75rem 2rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
-        }
-
-        .btn-outline-light {
-            border-color: var(--glass-border);
-            color: var(--text-secondary);
-            border-radius: 15px;
-            transition: all 0.3s ease;
-        }
-
-        .btn-outline-light:hover {
-            background: var(--glass-bg);
-            border-color: var(--primary-color);
-            color: var(--text-primary);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            border: none;
-            border-radius: 15px;
-        }
-
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #dc2626, #b91c1c);
-            transform: translateY(-2px);
-        }
-
-        /* Posts */
-        .post-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            word-wrap: break-word;
-            transition: all 0.3s ease;
-        }
-
-        .post-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        .post-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            margin-right: 1rem;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-
-        .post-content {
-            margin: 1rem 0;
-            line-height: 1.6;
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .post-content img {
-            max-width: 100% !important;
-            width: auto !important;
-            height: auto;
-            border-radius: 15px;
-            margin: 1rem 0;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-            object-fit: cover;
-        }
-
-        .post-content video {
-            max-width: 100% !important;
-            width: 100%;
-            height: auto;
-            border-radius: 15px;
-            margin: 1rem 0;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-
-        .post-actions {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--glass-border);
-            flex-wrap: wrap;
-        }
-
-        .action-btn {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            color: var(--text-secondary);
-            padding: 0.5rem 1rem;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .action-btn:hover {
-            background: var(--primary-color);
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        .action-btn.active {
-            background: var(--accent-color);
-            color: white;
-        }
-
-        /* Comments */
-        .comments-section {
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--glass-border);
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .comment-item {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            border-left: 3px solid var(--primary-color);
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .comment-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .comment-user {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .comment-avatar {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 0.8rem;
-        }
-
-        .comment-form {
-            margin-top: 1rem;
-        }
-
-        .comment-input {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            color: var(--text-primary);
-            border-radius: 10px;
-            padding: 0.75rem;
-            width: 100%;
-            resize: vertical;
-            min-height: 80px;
-            max-height: 200px;
-        }
-
-        .comment-input:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
-        }
-
-        /* File Upload */
-        .file-upload-area {
-            border: 2px dashed var(--glass-border);
-            border-radius: 15px;
-            padding: 2rem;
-            text-align: center;
-            background: var(--glass-bg);
-            transition: all 0.3s ease;
-            margin: 1rem 0;
-        }
-
-        .file-upload-area:hover {
-            border-color: var(--primary-color);
-            background: rgba(99, 102, 241, 0.1);
-        }
-
-        .file-upload-area.dragover {
-            border-color: var(--accent-color);
-            background: rgba(6, 182, 212, 0.1);
-        }
-
-        .file-preview {
-            margin-top: 1rem;
-            text-align: center;
-        }
-
-        .file-preview img {
-            max-width: 200px;
-            max-height: 200px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        .file-preview video {
-            max-width: 300px;
-            max-height: 200px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Users Grid */
-        .user-card {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 15px;
-            padding: 1.5rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .user-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-
-        .user-card .user-avatar {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 1rem;
-            font-size: 1.2rem;
-        }
-
-        /* Reviews */
-        .review-card {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .rating {
-            color: #fbbf24;
-            margin: 0.5rem 0;
-        }
-
-        /* Account Settings */
-        .settings-section {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .danger-zone {
-            border: 2px dashed #ef4444;
-            border-radius: 15px;
-            padding: 2rem;
-            background: rgba(239, 68, 68, 0.1);
-        }
-
-        /* Modal customizations */
-        .modal-content {
-            background: var(--bg-secondary);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            backdrop-filter: blur(20px);
-        }
-
-        .modal-header {
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .modal-footer {
-            border-top: 1px solid var(--glass-border);
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease forwards;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero-title {
-                font-size: 2.5rem;
-            }
-            
-            .hero-subtitle {
-                font-size: 1rem;
-            }
-            
-            .glass-card {
-                padding: 1rem;
-            }
-            
-            .post-card {
-                padding: 1rem;
-            }
-            
-            .post-actions {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .nav-pills {
-                flex-direction: column;
-            }
-            
-            .nav-pills .nav-link {
-                margin: 0.25rem 0;
-            }
-        }
-
-        /* Utility classes */
-        .text-gradient {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .overflow-hidden {
-            overflow: hidden !important;
-        }
-
-        .word-wrap {
-            word-wrap: break-word !important;
-            overflow-wrap: break-word !important;
-        }
-
-        /* Hide scrollbars but keep functionality */
-        .custom-scrollbar {
-            scrollbar-width: thin;
-            scrollbar-color: var(--glass-border) transparent;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: var(--glass-border);
-            border-radius: 10px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CourseConnect - Social Network per Corsisti</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- highlight.js theme -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css" />
+
+  <style>
+    :root{ --primary-color:#667eea; --secondary-color:#764ba2; --accent-color:#f093fb; --success-color:#4facfe; --warning-color:#f6d365; --danger-color:#ff6b6b; --dark-bg:#1a1a1a; --card-bg:#2d2d2d; --text-light:#e0e0e0; --text-muted:#9ca3af; --border-color:#374151; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,var(--dark-bg) 0%,#2d1b69 100%);color:var(--text-light);min-height:100vh;overflow-x:hidden}
+    .bg-animation{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:.1}
+    .floating-shapes{position:absolute;width:100%;height:100%;overflow:hidden}
+    .shape{position:absolute;background:linear-gradient(45deg,var(--primary-color),var(--secondary-color));border-radius:50%;animation:float 8s ease-in-out infinite}
+    .shape:nth-child(1){width:80px;height:80px;left:10%;animation-delay:0s}
+    .shape:nth-child(2){width:120px;height:120px;left:70%;animation-delay:2s}
+    .shape:nth-child(3){width:60px;height:60px;left:85%;animation-delay:4s}
+    @keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-20px) rotate(180deg)}}
+    .glass-card{background:rgba(45,45,45,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.3);transition:all .3s ease}
+    .glass-card:hover{transform:translateY(-5px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+    .navbar{background:rgba(26,26,26,.9)!important;backdrop-filter:blur(10px);border-bottom:1px solid var(--border-color);padding:1rem 0}
+    .navbar-brand{font-weight:700;background:linear-gradient(45deg,var(--primary-color),var(--accent-color));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.5rem}
+    .nav-link{color:var(--text-light)!important;font-weight:500;transition:color .3s ease}
+    .nav-link:hover{color:var(--primary-color)!important}
+    .navbar .navbar-toggler{border-color:rgba(255,255,255,.25)}
+    .navbar .navbar-toggler:focus{box-shadow:0 0 0 .15rem rgba(102,126,234,.35)}
+    .btn-primary{background:linear-gradient(45deg,var(--primary-color),var(--secondary-color));border:none;padding:.75rem 2rem;border-radius:10px;font-weight:600;transition:all .3s ease}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(102,126,234,.3)}
+    .btn-outline-primary{color:var(--primary-color);border-color:var(--primary-color);background:transparent}
+    .btn-outline-primary:hover{background:var(--primary-color);border-color:var(--primary-color);color:#fff}
+    .btn-danger{background:linear-gradient(45deg,var(--danger-color),#dc2626);border:none;border-radius:10px}
+    .btn-danger:hover{background:linear-gradient(45deg,#dc2626,#b91c1c);transform:translateY(-2px)}
+    .hero-section{padding:4rem 0;text-align:center}
+    .hero-title{font-size:3.5rem;font-weight:700;margin-bottom:1.5rem;background:linear-gradient(45deg,var(--primary-color),var(--accent-color));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .hero-subtitle{font-size:1.25rem;color:var(--text-muted);margin-bottom:2rem;max-width:600px;margin-left:auto;margin-right:auto}
+    .form-control,.form-select{background:rgba(45,45,45,.7);border:1px solid var(--border-color);color:var(--text-light);border-radius:10px;padding:.75rem 1rem}
+    .form-control:focus,.form-select:focus{background:rgba(45,45,45,.9);border-color:var(--primary-color);color:var(--text-light);box-shadow:0 0 0 .2rem rgba(102,126,234,.25)}
+    .form-control::placeholder{color:var(--text-muted)}
+    .form-select option{background:var(--card-bg);color:var(--text-light)}
+    .is-invalid{border-color:var(--danger-color)!important;box-shadow:0 0 0 .2rem rgba(255,107,107,.25)!important}
+    .is-valid{border-color:var(--success-color)!important;box-shadow:0 0 0 .2rem rgba(79,172,254,.25)!important}
+    .invalid-feedback{color:var(--danger-color);font-size:.875rem;margin-top:.25rem}
+    .valid-feedback{color:var(--success-color);font-size:.875rem;margin-top:.25rem}
+    .modal-content{background:var(--card-bg);border:1px solid var(--border-color);border-radius:16px}
+    .modal-header{border-bottom:1px solid var(--border-color)}
+    .modal-footer{border-top:1px solid var(--border-color)}
+    .alert{border-radius:10px;border:none;position:fixed;top:20px;right:20px;z-index:9999;min-width:300px;max-width:400px}
+    .alert-success{background:linear-gradient(45deg,rgba(79,172,254,.9),rgba(79,172,254,.9));color:#fff;border:1px solid rgba(79,172,254,.3)}
+    .alert-danger{background:linear-gradient(45deg,rgba(255,107,107,.9),rgba(255,107,107,.9));color:#fff;border:1px solid rgba(255,107,107,.3)}
+    .post-card{margin-bottom:1.5rem;padding:1.5rem}
+    .user-avatar{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;color:#fff;margin-right:1rem}
+    .post-content{font-size:1rem;line-height:1.6;margin:1rem 0}
+    .post-actions{
+      display:flex;
+      gap:1rem;
+      margin-top:1rem;
+      padding-top:1rem;
+      border-top:1px solid var(--border-color);
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .action-btn{
+      background:none;
+      border:none;
+      color:var(--text-muted);
+      padding:.5rem 1rem;
+      border-radius:8px;
+      transition:all .3s ease;
+      cursor:pointer;
+      white-space:nowrap;
+      flex-shrink:0;
+      display:inline-flex;
+      align-items:center;
+    }
+    .action-btn:hover{color:var(--primary-color);background:rgba(102,126,234,.1)}
+    .action-btn.liked{color:var(--danger-color)}
+    .action-btn.text-danger{color:var(--danger-color)!important}
+    .action-btn.text-danger:hover{color:#fff!important;background:var(--danger-color)!important}
+    .loading{display:none;text-align:center;padding:2rem}
+    .spinner{width:40px;height:40px;border:4px solid rgba(102,126,234,.3);border-top:4px solid var(--primary-color);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .sidebar{background:rgba(45,45,45,.4);border-radius:16px;padding:1.5rem;margin-bottom:2rem}
+    .sidebar h5{color:var(--primary-color);margin-bottom:1rem}
+    .post-content pre code{display:block;padding:1rem;border-radius:12px}
+    .post-content pre{background:rgba(0,0,0,.35);border:1px solid var(--border-color)}
+    
+    /* 🔧 FIX IMMAGINI E CONTENUTI - PROBLEMA LAYOUT RISOLTO! */
+    .post-content img{
+      max-width:100%!important;
+      width:auto!important;
+      height:auto!important;
+      border-radius:12px;
+      margin:1rem 0;
+      box-shadow:0 4px 12px rgba(0,0,0,.3);
+      display:block;
+      object-fit:cover;
+    }
+    .post-content p img{
+      margin:0.5rem 0;
+    }
+    .post-content video{
+      max-width:100%!important;
+      width:100%;
+      height:auto;
+      border-radius:12px;
+      margin:1rem 0;
+      box-shadow:0 4px 12px rgba(0,0,0,.3);
+    }
+    
+    /* 🔧 CONTENIMENTO GENERALE - FORZA TUTTO A STARE NEI CONTAINER */
+    .post-card{
+      overflow:hidden;
+      word-wrap:break-word;
+      word-break:break-word;
+    }
+    .post-content{
+      overflow-wrap:break-word;
+      word-break:break-word;
+      max-width:100%;
+    }
+    .post-content *{
+      max-width:100%;
+      box-sizing:border-box;
+    }
+    .post-content pre{
+      overflow-x:auto;
+      max-width:100%;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+    }
+    .post-content code{
+      word-wrap:break-word;
+      white-space:pre-wrap;
+    }
+    
+    /* 💬 COMMENTI STYLES - SISTEMA LAYOUT FISSO */
+    .comments-section{
+      margin-top:1rem;
+      padding-top:1rem;
+      border-top:1px solid var(--border-color);
+      overflow:hidden;
+      word-wrap:break-word;
+    }
+    .comment-item{
+      padding:0.75rem 0;
+      border-bottom:1px solid rgba(255,255,255,.05);
+      overflow:hidden;
+    }
+    .comment-item:last-child{
+      border-bottom:none;
+    }
+    .comment-avatar{
+      width:32px;
+      height:32px;
+      min-width:32px;
+      min-height:32px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:600;
+      color:#fff;
+      font-size:0.8rem;
+      margin-right:0.75rem;
+      flex-shrink:0;
+    }
+    .comment-content{
+      font-size:0.9rem;
+      line-height:1.4;
+      margin-bottom:0.25rem;
+      word-wrap:break-word;
+      overflow-wrap:break-word;
+      max-width:100%;
+    }
+    .comment-meta{
+      font-size:0.75rem;
+      color:var(--text-muted);
+      display:flex;
+      align-items:center;
+      gap:0.5rem;
+      flex-wrap:wrap;
+    }
+    .comment-author{
+      font-weight:600;
+      color:var(--primary-color);
+    }
+    .comment-form{
+      margin-top:1rem;
+      padding:1rem;
+      background:rgba(255,255,255,.02);
+      border-radius:12px;
+      border:1px dashed var(--border-color);
+      overflow:hidden;
+    }
+    .comment-input{
+      background:rgba(45,45,45,.8);
+      border:1px solid var(--border-color);
+      color:var(--text-light);
+      border-radius:8px;
+      padding:0.5rem;
+      font-size:0.9rem;
+      resize:vertical;
+      min-height:60px;
+      width:100%;
+      max-width:100%;
+      box-sizing:border-box;
+    }
+    .comment-input:focus{
+      background:rgba(45,45,45,.95);
+      border-color:var(--primary-color);
+      box-shadow:0 0 0 .15rem rgba(102,126,234,.25);
+      outline:none;
+    }
+    .comment-input::placeholder{
+      color:var(--text-muted);
+    }
+    .comment-btn{
+      background:var(--primary-color);
+      color:white;
+      border:none;
+      padding:0.5rem 1rem;
+      border-radius:6px;
+      font-size:0.85rem;
+      font-weight:600;
+      cursor:pointer;
+      transition:all .2s ease;
+      white-space:nowrap;
+    }
+    .comment-btn:hover{
+      background:var(--secondary-color);
+      transform:translateY(-1px);
+    }
+    .comment-btn:disabled{
+      background:var(--text-muted);
+      cursor:not-allowed;
+      transform:none;
+    }
+    .comment-delete{
+      color:var(--danger-color);
+      background:none;
+      border:none;
+      font-size:0.7rem;
+      padding:0.2rem 0.4rem;
+      border-radius:4px;
+      cursor:pointer;
+      transition:background .2s ease;
+      white-space:nowrap;
+    }
+    .comment-delete:hover{
+      background:rgba(255,107,107,.1);
+    }
+    .comments-toggle{
+      color:var(--text-muted);
+      background:none;
+      border:none;
+      font-size:0.85rem;
+      cursor:pointer;
+      transition:color .2s ease;
+      white-space:nowrap;
+    }
+    .comments-toggle:hover{
+      color:var(--primary-color);
+    }
+    .comments-counter{
+      font-size:0.8rem;
+      color:var(--text-muted);
+      margin-left:0.5rem;
+    }
+    
+    /* File Upload */
+    .file-upload-area{
+      border:2px dashed var(--border-color);
+      border-radius:12px;
+      padding:2rem;
+      text-align:center;
+      background:rgba(45,45,45,.3);
+      transition:all .3s ease;
+      margin:1rem 0;
+    }
+    .file-upload-area:hover{
+      border-color:var(--primary-color);
+      background:rgba(102,126,234,.1);
+    }
+    .file-upload-area.dragover{
+      border-color:var(--accent-color);
+      background:rgba(240,147,251,.1);
+    }
+    .file-preview{
+      margin-top:1rem;
+      text-align:center;
+    }
+    .file-preview img{
+      max-width:200px;
+      max-height:200px;
+      border-radius:10px;
+      box-shadow:0 4px 15px rgba(0,0,0,.3);
+    }
+    .file-preview video{
+      max-width:300px;
+      max-height:200px;
+      border-radius:10px;
+      box-shadow:0 4px 15px rgba(0,0,0,.3);
+    }
+    
+    /* Testimonianze Styles */
+    .testimonials-section{padding:4rem 0;background:rgba(0,0,0,.2)}
+    .testimonial-card{background:rgba(45,45,45,.8);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:2rem;height:100%;transition:all .3s ease}
+    .testimonial-card:hover{transform:translateY(-10px);box-shadow:0 20px 40px rgba(0,0,0,.4)}
+    .testimonial-avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto 1.5rem;display:block;border:3px solid var(--primary-color)}
+    .testimonial-stars{color:#ffd700;font-size:1.2rem;margin-bottom:1rem;text-align:center}
+    .testimonial-text{font-style:italic;margin-bottom:1.5rem;line-height:1.6;color:var(--text-light)}
+    .testimonial-author{text-align:center}
+    .testimonial-name{font-weight:600;color:var(--primary-color);margin-bottom:.5rem}
+    .testimonial-course{color:var(--text-muted);font-size:.9rem}
+    
+    /* Rating Stars Interattive */
+    .rating-stars{display:flex;gap:0.25rem;justify-content:center;margin:1rem 0}
+    .rating-star{font-size:1.5rem;color:#6c757d;cursor:pointer;transition:color .2s ease}
+    .rating-star:hover,.rating-star.active{color:#ffd700}
+    
+    /* Account Settings */
+    .settings-section{
+      background:rgba(45,45,45,.6);
+      border:1px solid var(--border-color);
+      border-radius:15px;
+      padding:2rem;
+      margin-bottom:2rem;
+    }
+    .danger-zone{
+      border:2px dashed var(--danger-color);
+      border-radius:15px;
+      padding:2rem;
+      background:rgba(255,107,107,.1);
+    }
+    
+    @media (max-width:991.98px){.navbar .navbar-collapse{background:rgba(26,26,26,.98);border:1px solid var(--border-color);border-radius:12px;padding:.5rem 1rem;margin-top:.75rem}.navbar-nav .nav-link{padding:.5rem 0}}
+    @media (max-width:768px){
+      .hero-title{font-size:2.5rem}
+      .hero-subtitle{font-size:1rem}
+      .post-card{padding:1rem;overflow:hidden}
+      .testimonials-section{padding:2rem 0}
+      .testimonial-card{padding:1.5rem}
+      .comment-form{padding:0.75rem}
+      .comment-input{min-height:50px}
+      .post-actions{gap:0.5rem;flex-wrap:wrap}
+      .action-btn{padding:0.4rem 0.8rem;font-size:0.8rem}
+      .post-content img{margin:0.5rem 0}
+      .comment-meta{flex-wrap:wrap;gap:0.25rem}
+    }
+    .fade-in{animation:fadeIn .6s ease-in}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .slide-up{animation:slideUp .4s ease-out}
+    @keyframes slideUp{from{transform:translateY(100px);opacity:0}to{transform:translateY(0);opacity:1}}
+    
+    /* 🛡️ CONTENIMENTO GLOBALE - IMPEDISCE OVERFLOW */
+    .container, .container-fluid{
+      overflow-x:hidden;
+    }
+    .glass-card{
+      overflow:hidden;
+      word-wrap:break-word;
+    }
+    .col-lg-8, .col-lg-4{
+      overflow-x:hidden;
+    }
+    *{
+      max-width:100%;
+      box-sizing:border-box;
+    }
+    .d-flex{
+      flex-wrap:wrap;
+    }
+  </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg glass-navbar fixed-top">
-        <div class="container">
-            <a class="navbar-brand text-gradient fw-bold fs-3" href="#">
-                <i class="bi bi-mortarboard-fill me-2"></i>CourseConnect
+  <!-- Background Animation -->
+  <div class="bg-animation">
+    <div class="floating-shapes"><div class="shape"></div><div class="shape"></div><div class="shape"></div></div>
+  </div>
+
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="/"><i class="fas fa-graduation-cap me-2"></i>CourseConnect</a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <i class="fas fa-bars" style="font-size:1.25rem"></i>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item" id="nav-login"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="fas fa-sign-in-alt me-2"></i>Accedi</a></li>
+          <li class="nav-item" id="nav-register"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#registerModal"><i class="fas fa-user-plus me-2"></i>Registrati</a></li>
+          <li class="nav-item dropdown" id="nav-user" style="display:none;">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+              <i class="fas fa-user me-2"></i>Ciao, <span id="user-name"></span>!
             </a>
-            <div class="navbar-nav ms-auto">
-                <div id="authButtons" class="d-flex gap-2">
-                    <button class="btn btn-outline-light" onclick="showLogin()">
-                        <i class="bi bi-box-arrow-in-right me-1"></i>Accedi
-                    </button>
-                    <button class="btn btn-primary" onclick="showRegister()">
-                        <i class="bi bi-person-plus me-1"></i>Registrati
-                    </button>
-                </div>
-                <div id="userMenu" class="d-none">
-                    <div class="dropdown">
-                        <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle me-1"></i><span id="currentUsername"></span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#" onclick="showSettings()">
-                                <i class="bi bi-gear me-2"></i>Impostazioni Account
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" onclick="logout()">
-                                <i class="bi bi-box-arrow-right me-2"></i>Logout
-                            </a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Hero Section -->
-    <section class="hero-section">
-        <div class="container">
-            <h1 class="hero-title">CourseConnect</h1>
-            <p class="hero-subtitle">
-                La piattaforma social dove i corsisti si incontrano, condividono esperienze
-                e costruiscono la loro community di apprendimento
-            </p>
-        </div>
-    </section>
-
-    <!-- Main Content -->
-    <div class="container mt-5 pt-5">
-        <!-- Navigation Tabs -->
-        <ul class="nav nav-pills justify-content-center mb-5" id="mainTabs">
-            <li class="nav-item">
-                <button class="nav-link active" onclick="showSection('home')">
-                    <i class="bi bi-house me-1"></i>Home
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" onclick="showSection('users')">
-                    <i class="bi bi-people me-1"></i>Community
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" onclick="showSection('reviews')">
-                    <i class="bi bi-star me-1"></i>Recensioni
-                </button>
-            </li>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" onclick="showSettings()">
+                <i class="fas fa-cog me-2"></i>Impostazioni Account
+              </a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" onclick="logout()">
+                <i class="fas fa-sign-out-alt me-2"></i>Logout
+              </a></li>
+            </ul>
+          </li>
+          <li class="nav-item" id="nav-review" style="display:none;"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#reviewModal"><i class="fas fa-star me-2"></i>Lascia Recensione</a></li>
         </ul>
+      </div>
+    </div>
+  </nav>
 
-        <!-- Home Section -->
-        <div id="homeSection" class="section">
-            <!-- Create Post Form (Only for logged in users) -->
-            <div id="createPostForm" class="glass-card mb-4 d-none">
-                <h5 class="mb-3"><i class="bi bi-plus-circle me-2"></i>Condividi la tua esperienza</h5>
-                <form id="postForm" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <textarea class="form-control" id="postContent" rows="4" 
-                            placeholder="Cosa vuoi condividere oggi? Racconta la tua esperienza di studio, i progressi del corso, o fai una domanda alla community..."></textarea>
-                    </div>
-                    
-                    <!-- File Upload Area -->
-                    <div class="file-upload-area" id="fileUploadArea">
-                        <i class="bi bi-cloud-upload fs-1 text-muted mb-2"></i>
-                        <p class="mb-2">Trascina qui le tue immagini o video</p>
-                        <p class="text-muted small mb-3">Oppure clicca per selezionare i file</p>
-                        <input type="file" id="fileInput" accept="image/*,video/*" class="d-none">
-                        <button type="button" class="btn btn-outline-light" onclick="document.getElementById('fileInput').click()">
-                            <i class="bi bi-folder2-open me-1"></i>Scegli file
-                        </button>
-                        <div class="mt-2 text-muted small">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Formati supportati: PNG, JPG, GIF, MP4, AVI, MOV (max 50MB)
-                        </div>
-                    </div>
-                    
-                    <!-- File Preview -->
-                    <div id="filePreview" class="file-preview d-none"></div>
-                    
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="text-muted small">
-                            <i class="bi bi-lightbulb me-1"></i>
-                            Condividi foto dei tuoi appunti, video delle tue presentazioni, o racconta i tuoi successi!
-                        </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-send me-1"></i>Pubblica
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Posts Feed -->
-            <div id="postsContainer"></div>
+  <!-- MAIN -->
+  <div class="container mt-5 pt-5">
+    <!-- Guest Section -->
+    <div id="guest-section">
+      <div class="hero-section fade-in">
+        <h1 class="hero-title"><i class="fas fa-graduation-cap me-3"></i>CourseConnect</h1>
+        <p class="hero-subtitle">Il social network dedicato ai corsisti. Connettiti, condividi e cresci insieme alla community di apprendimento più dinamica!</p>
+        <div class="d-flex gap-3 justify-content-center flex-wrap">
+          <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#registerModal"><i class="fas fa-rocket me-2"></i>Inizia Ora</button>
+          <button class="btn btn-outline-primary btn-lg" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="fas fa-sign-in-alt me-2"></i>Accedi</button>
         </div>
+      </div>
 
-        <!-- Users Section -->
-        <div id="usersSection" class="section d-none">
-            <div class="glass-card">
-                <h4 class="mb-4"><i class="bi bi-people me-2"></i>Community</h4>
-                <div id="usersContainer" class="row"></div>
-            </div>
-        </div>
+      <!-- Features -->
+      <div class="row mt-5">
+        <div class="col-md-4 mb-4"><div class="glass-card text-center p-4 h-100 fade-in"><i class="fas fa-users fa-3x mb-3" style="color:var(--primary-color)"></i><h4>Community</h4><p>Connettiti con corsisti da tutta Italia, condividi esperienze e crea relazioni durature.</p></div></div>
+        <div class="col-md-4 mb-4"><div class="glass-card text-center p-4 h-100 fade-in"><i class="fas fa-lightbulb fa-3x mb-3" style="color:var(--accent-color)"></i><h4>Condivisione</h4><p>Condividi progetti, successi e sfide. Impara dagli altri e aiuta chi è agli inizi.</p></div></div>
+        <div class="col-md-4 mb-4"><div class="glass-card text-center p-4 h-100 fade-in"><i class="fas fa-chart-line fa-3x mb-3" style="color:var(--success-color)"></i><h4>Crescita</h4><p>Accelera il tuo apprendimento attraverso feedback, collaborazioni e opportunità.</p></div></div>
+      </div>
 
-        <!-- Reviews Section -->
-        <div id="reviewsSection" class="section d-none">
-            <div class="glass-card">
-                <h4 class="mb-4"><i class="bi bi-star me-2"></i>Recensioni Corsi</h4>
-                
-                <!-- Add Review Form (Only for logged in users) -->
-                <div id="reviewForm" class="d-none mb-4">
-                    <h5 class="mb-3">Aggiungi una recensione</h5>
-                    <form id="addReviewForm">
-                        <div class="mb-3">
-                            <label class="form-label">Nome del corso</label>
-                            <input type="text" class="form-control" id="reviewCourseName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Valutazione</label>
-                            <select class="form-select" id="reviewRating" required>
-                                <option value="">Seleziona valutazione</option>
-                                <option value="5">⭐⭐⭐⭐⭐ (5 stelle)</option>
-                                <option value="4">⭐⭐⭐⭐ (4 stelle)</option>
-                                <option value="3">⭐⭐⭐ (3 stelle)</option>
-                                <option value="2">⭐⭐ (2 stelle)</option>
-                                <option value="1">⭐ (1 stella)</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Commento</label>
-                            <textarea class="form-control" id="reviewComment" rows="3"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-star me-1"></i>Pubblica Recensione
-                        </button>
-                    </form>
-                </div>
-                
-                <div id="reviewsContainer"></div>
+      <!-- Testimonianze -->
+      <div class="testimonials-section mt-5">
+        <div class="container">
+          <div class="text-center mb-5">
+            <h2 class="hero-title" style="font-size:2.5rem;margin-bottom:1rem">Cosa Dicono i Nostri Corsisti</h2>
+            <p class="hero-subtitle">Storie di successo reali dalla community CourseConnect</p>
+          </div>
+          
+          <div id="testimonials-container">
+            <!-- Le testimonianze verranno caricate dinamicamente -->
+            <div class="text-center">
+              <div class="spinner"></div>
+              <p>Caricamento testimonianze...</p>
             </div>
+          </div>
+
+          <div class="text-center mt-5">
+            <p class="text-muted mb-4">Unisciti a oltre <strong>1.500+ corsisti</strong> che hanno già trasformato la loro carriera</p>
+            <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#registerModal"><i class="fas fa-star me-2"></i>Inizia la Tua Storia di Successo</button>
+          </div>
         </div>
+      </div>
     </div>
 
-    <!-- Login Modal -->
-    <div class="modal fade" id="loginModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>Accedi a CourseConnect
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="loginForm">
-                        <div class="mb-3">
-                            <label class="form-label">Username</label>
-                            <input type="text" class="form-control" id="loginUsername" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input type="password" class="form-control" id="loginPassword" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-box-arrow-in-right me-1"></i>Accedi
-                        </button>
-                    </form>
-                </div>
+    <!-- User Section -->
+    <div id="user-section" style="display:none;">
+      <div class="row">
+        <div class="col-lg-8">
+          <!-- Create Post -->
+          <div class="glass-card p-4 mb-4 slide-up">
+            <h5 class="mb-3"><i class="fas fa-edit me-2"></i>Cosa stai imparando oggi?</h5>
+            
+            <!-- TOOLBAR MARKDOWN - RIPRISTINATA! -->
+            <div class="d-flex gap-2 flex-wrap mb-2">
+              <button class="btn btn-sm btn-outline-primary" type="button" onclick="mdWrap('**','**')"><strong>B</strong></button>
+              <button class="btn btn-sm btn-outline-primary" type="button" onclick="mdWrap('*','*')"><em>I</em></button>
+              <button class="btn btn-sm btn-outline-primary" type="button" onclick="mdWrap('`','`')">`code`</button>
+              <button class="btn btn-sm btn-outline-primary" type="button" onclick="mdWrap('\n```\n','\n```\n', true)">code block</button>
+              <button class="btn btn-sm btn-outline-primary" type="button" onclick="insertLink()">link</button>
+              <button class="btn btn-sm btn-outline-primary" type="button" onclick="triggerImagePick()"><i class="fa-regular fa-image me-1"></i> immagine</button>
+              <input type="file" id="image-input" accept="image/*" class="d-none" />
             </div>
-        </div>
-    </div>
+            
+            <form id="postForm" enctype="multipart/form-data">
+              <div class="mb-3">
+                <textarea class="form-control" id="post-content" rows="5" placeholder="Markdown supportato: **grassetto**, *corsivo*, `codice`, ```blocchi```, ![alt](url)" maxlength="4000"></textarea>
+                <div class="text-end mt-2"><small class="text-muted"><span id="char-count">0</span>/4000 caratteri</small></div>
+              </div>
+              
+              <!-- File Upload Area per Video/Immagini -->
+              <div class="file-upload-area" id="fileUploadArea">
+                <i class="fas fa-cloud-upload-alt fa-2x mb-2 text-muted"></i>
+                <p class="mb-2">Trascina qui le tue immagini o video</p>
+                <p class="text-muted small mb-3">Oppure clicca per selezionare i file</p>
+                <input type="file" id="fileInput" accept="image/*,video/*" class="d-none">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('fileInput').click()">
+                  <i class="fas fa-folder-open me-1"></i>Scegli file
+                </button>
+                <div class="mt-2 text-muted small">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Formati supportati: PNG, JPG, GIF, MP4, AVI, MOV (max 50MB)
+                </div>
+              </div>
+              
+              <!-- File Preview -->
+              <div id="filePreview" class="file-preview d-none"></div>
+              
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-2"></i>Pubblica</button>
+                <button class="btn btn-outline-primary" type="button" onclick="previewPost()"><i class="fa-regular fa-eye me-2"></i>Anteprima</button>
+              </div>
+              <div id="post-preview" class="mt-3" style="display:none"><div class="border rounded p-3" id="post-preview-body"></div></div>
+            </form>
+          </div>
 
-    <!-- Register Modal -->
-    <div class="modal fade" id="registerModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-person-plus me-2"></i>Registrati su CourseConnect
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="registerForm">
-                        <div class="mb-3">
-                            <label class="form-label">Username</label>
-                            <input type="text" class="form-control" id="registerUsername" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" class="form-control" id="registerEmail" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input type="password" class="form-control" id="registerPassword" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Bio (opzionale)</label>
-                            <textarea class="form-control" id="registerBio" rows="2" 
-                                placeholder="Raccontaci qualcosa di te..."></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Corso/Studi (opzionale)</label>
-                            <input type="text" class="form-control" id="registerCourse" 
-                                placeholder="Es: Informatica, Marketing, Design...">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-person-plus me-1"></i>Registrati
-                        </button>
-                    </form>
-                </div>
+          <!-- Posts Feed -->
+          <div id="posts-container"><div class="loading"><div class="spinner"></div><p>Caricamento post...</p></div></div>
+        </div>
+
+        <div class="col-lg-4">
+          <!-- Sidebar dinamica -->
+          <div class="sidebar glass-card">
+            <h5><i class="fas fa-fire me-2"></i>Corsisti Attivi</h5>
+            <div id="active-users"></div>
+          </div>
+
+          <div class="sidebar glass-card">
+            <h5><i class="fas fa-star me-2"></i>Tips del Giorno</h5>
+            <p class="mb-2"><strong>💡 Coding:</strong> Usa console.log() per debuggare il JavaScript</p>
+            <p class="mb-2"><strong>🎨 Design:</strong> I colori complementari creano contrasto efficace</p>
+            <p class="mb-0"><strong>📈 Marketing:</strong> A/B test per ottimizzare le conversioni</p>
+          </div>
+
+          <!-- Pulsante Recensione -->
+          <div class="sidebar glass-card">
+            <h5><i class="fas fa-star me-2"></i>La Tua Esperienza</h5>
+            <p class="mb-3">Condividi la tua esperienza con CourseConnect e aiuta altri corsisti!</p>
+            <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#reviewModal">
+              <i class="fas fa-star me-2"></i>Lascia una Recensione
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL REGISTRAZIONE -->
+  <div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h5 class="modal-title" id="registerModalLabel"><i class="fas fa-user-plus me-2"></i>Unisciti a CourseConnect</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center mb-4">
+            <p class="text-muted">Inizia la tua storia di successo oggi stesso!</p>
+          </div>
+          <form id="register-form" novalidate>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3"><label for="register-nome" class="form-label">Nome *</label><input type="text" class="form-control" id="register-nome" required><div class="invalid-feedback">Il nome è obbligatorio</div></div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3"><label for="register-cognome" class="form-label">Cognome *</label><input type="text" class="form-control" id="register-cognome" required><div class="invalid-feedback">Il cognome è obbligatorio</div></div>
+              </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Account Settings Modal -->
-    <div class="modal fade" id="settingsModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-gear me-2"></i>Impostazioni Account
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Account Info -->
-                    <div class="settings-section">
-                        <h6><i class="bi bi-person-circle me-2"></i>Informazioni Account</h6>
-                        <div id="currentUserInfo"></div>
-                    </div>
-
-                    <!-- Danger Zone -->
-                    <div class="danger-zone">
-                        <h6 class="text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Zona Pericolosa</h6>
-                        <p class="text-muted mb-3">
-                            Una volta eliminato l'account, non potrai più recuperarlo. Tutti i tuoi post, commenti e like verranno eliminati permanentemente.
-                        </p>
-                        <button class="btn btn-danger" onclick="showDeleteAccountModal()">
-                            <i class="bi bi-trash me-1"></i>Elimina Account
-                        </button>
-                    </div>
-                </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3"><label for="register-username" class="form-label">Username *</label><input type="text" class="form-control" id="register-username" required><div class="invalid-feedback">L'username è obbligatorio</div></div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3"><label for="register-email" class="form-label">Email *</label><input type="email" class="form-control" id="register-email" required><div class="invalid-feedback">Inserisci un'email valida</div></div>
+              </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Delete Account Confirmation Modal -->
-    <div class="modal fade" id="deleteAccountModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger">
-                    <h5 class="modal-title text-white">
-                        <i class="bi bi-exclamation-triangle me-2"></i>Conferma Eliminazione Account
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-danger">
-                        <strong>Attenzione!</strong> Questa azione è irreversibile. Tutti i tuoi dati verranno eliminati permanentemente.
-                    </div>
-
-                    <form id="deleteAccountForm">
-                        <div class="mb-3">
-                            <label class="form-label">Perché vuoi eliminare il tuo account?</label>
-                            <select class="form-select" id="deletionReason" required>
-                                <option value="">Seleziona un motivo</option>
-                                <option value="Non uso più la piattaforma">Non uso più la piattaforma</option>
-                                <option value="Privacy e sicurezza">Preoccupazioni per privacy e sicurezza</option>
-                                <option value="Contenuti inappropriati">Troppi contenuti inappropriati</option>
-                                <option value="Problemi tecnici">Problemi tecnici ricorrenti</option>
-                                <option value="Alternative migliori">Ho trovato alternative migliori</option>
-                                <option value="Altro">Altro motivo</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Feedback aggiuntivo (opzionale)</label>
-                            <textarea class="form-control" id="deletionFeedback" rows="3" 
-                                placeholder="Aiutaci a migliorare! Cosa potremmo fare diversamente?"></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="confirmDeletion" required>
-                                <label class="form-check-label" for="confirmDeletion">
-                                    Confermo di voler eliminare definitivamente il mio account e tutti i dati associati
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="modal">
-                                Annulla
-                            </button>
-                            <button type="submit" class="btn btn-danger flex-fill">
-                                <i class="bi bi-trash me-1"></i>Elimina Account
-                            </button>
-                        </div>
-                    </form>
-                </div>
+            <div class="mb-3"><label for="register-corso" class="form-label">Corso di Studio *</label>
+              <select class="form-select" id="register-corso" required>
+                <option value="">Seleziona il tuo corso...</option>
+                <option value="Sviluppo Web Full-Stack">Sviluppo Web Full-Stack</option>
+                <option value="UI/UX Design">UI/UX Design</option>
+                <option value="Digital Marketing">Digital Marketing</option>
+                <option value="Data Science">Data Science</option>
+                <option value="Mobile Development">Mobile Development</option>
+                <option value="Cybersecurity">Cybersecurity</option>
+                <option value="Cloud Computing">Cloud Computing</option>
+                <option value="Game Development">Game Development</option>
+                <option value="Web Design">Web Design</option>
+                <option value="Graphic Design">Graphic Design</option>
+                <option value="E-commerce">E-commerce</option>
+                <option value="Social Media Management">Social Media Management</option>
+                <option value="Altro">Altro</option>
+              </select>
+              <div class="invalid-feedback">Seleziona un corso dal menu</div>
             </div>
+            <div class="mb-3"><label for="register-password" class="form-label">Password *</label><input type="password" class="form-control" id="register-password" required minlength="6"><div class="form-text">Minimo 6 caratteri</div><div class="invalid-feedback">La password deve essere di almeno 6 caratteri</div></div>
+            <div class="mb-3"><label for="register-bio" class="form-label">Bio (Opzionale)</label><textarea class="form-control" id="register-bio" rows="2" placeholder="Raccontaci di te e dei tuoi obiettivi..."></textarea></div>
+          </form>
         </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+          <button type="button" class="btn btn-primary" onclick="register()" id="register-btn"><i class="fas fa-user-plus me-2"></i>Unisciti alla Community</button>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- MODAL LOGIN -->
+  <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h5 class="modal-title" id="loginModalLabel"><i class="fas fa-sign-in-alt me-2"></i>Bentornato in CourseConnect</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <form id="login-form">
+            <div class="mb-3"><label for="login-username" class="form-label">Username</label><input type="text" class="form-control" id="login-username" required></div>
+            <div class="mb-3"><label for="login-password" class="form-label">Password</label><input type="password" class="form-control" id="login-password" required></div>
+            <div class="text-center"><small class="text-muted">🔧 Account di test: admin/admin123</small></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+          <button type="button" class="btn btn-primary" onclick="login()"><i class="fas fa-sign-in-alt me-2"></i>Accedi</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <script>
-        // Global variables
-        let currentUser = null;
+  <!-- MODAL RECENSIONE -->
+  <div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reviewModalLabel"><i class="fas fa-star me-2"></i>Lascia una Recensione</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center mb-4">
+            <p class="text-muted">Condividi la tua esperienza con CourseConnect!</p>
+          </div>
+          <form id="review-form" novalidate>
+            <div class="mb-4">
+              <label class="form-label">La tua foto *</label>
+              <div class="d-flex align-items-center gap-3">
+                <div id="review-avatar-preview" class="testimonial-avatar" style="width:60px;height:60px;background:var(--primary-color);display:flex;align-items:center;justify-content:center;color:white;font-weight:600;"></div>
+                <div>
+                  <input type="file" id="review-photo" accept="image/*" class="form-control" required>
+                  <small class="text-muted">Formati supportati: JPG, PNG, GIF</small>
+                </div>
+              </div>
+              <div class="invalid-feedback">Carica una tua foto</div>
+            </div>
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            checkAuth();
-            loadPosts();
-            loadUsers();
-            loadReviews();
-            setupEventListeners();
+            <div class="mb-4">
+              <label class="form-label">Valutazione *</label>
+              <div class="rating-stars" id="review-rating">
+                <i class="fas fa-star rating-star" data-rating="1"></i>
+                <i class="fas fa-star rating-star" data-rating="2"></i>
+                <i class="fas fa-star rating-star" data-rating="3"></i>
+                <i class="fas fa-star rating-star" data-rating="4"></i>
+                <i class="fas fa-star rating-star" data-rating="5"></i>
+              </div>
+              <input type="hidden" id="review-rating-value" required>
+              <div class="text-center">
+                <small class="text-muted">Clicca sulle stelle per valutare</small>
+              </div>
+              <div class="invalid-feedback">Seleziona una valutazione</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="review-text" class="form-label">La tua recensione *</label>
+              <textarea class="form-control" id="review-text" rows="4" placeholder="Racconta la tua esperienza con CourseConnect..." maxlength="500" required></textarea>
+              <div class="text-end mt-2"><small class="text-muted"><span id="review-char-count">0</span>/500 caratteri</small></div>
+              <div class="invalid-feedback">Scrivi una recensione</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="review-location" class="form-label">Città (Opzionale)</label>
+              <input type="text" class="form-control" id="review-location" placeholder="es. Milano">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="button" class="btn btn-primary" onclick="submitReview()" id="review-submit-btn">
+            <i class="fas fa-star me-2"></i>Pubblica Recensione
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Settings Modal -->
+  <div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-cog me-2"></i>Impostazioni Account
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Account Info -->
+          <div class="settings-section">
+            <h6><i class="fas fa-user-circle me-2"></i>Informazioni Account</h6>
+            <div id="currentUserInfo"></div>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="danger-zone">
+            <h6 class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Zona Pericolosa</h6>
+            <p class="text-muted mb-3">
+              Una volta eliminato l'account, non potrai più recuperarlo. Tutti i tuoi post, commenti e like verranno eliminati permanentemente.
+            </p>
+            <button class="btn btn-danger" onclick="showDeleteAccountModal()">
+              <i class="fas fa-trash me-1"></i>Elimina Account
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Account Confirmation Modal -->
+  <div class="modal fade" id="deleteAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-danger">
+          <h5 class="modal-title text-white">
+            <i class="fas fa-exclamation-triangle me-2"></i>Conferma Eliminazione Account
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger">
+            <strong>Attenzione!</strong> Questa azione è irreversibile. Tutti i tuoi dati verranno eliminati permanentemente.
+          </div>
+
+          <form id="deleteAccountForm">
+            <div class="mb-3">
+              <label class="form-label">Perché vuoi eliminare il tuo account?</label>
+              <select class="form-select" id="deletionReason" required>
+                <option value="">Seleziona un motivo</option>
+                <option value="Non uso più la piattaforma">Non uso più la piattaforma</option>
+                <option value="Privacy e sicurezza">Preoccupazioni per privacy e sicurezza</option>
+                <option value="Contenuti inappropriati">Troppi contenuti inappropriati</option>
+                <option value="Problemi tecnici">Problemi tecnici ricorrenti</option>
+                <option value="Alternative migliori">Ho trovato alternative migliori</option>
+                <option value="Altro">Altro motivo</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Feedback aggiuntivo (opzionale)</label>
+              <textarea class="form-control" id="deletionFeedback" rows="3" 
+                placeholder="Aiutaci a migliorare! Cosa potremmo fare diversamente?"></textarea>
+            </div>
+
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="confirmDeletion" required>
+                <label class="form-check-label" for="confirmDeletion">
+                  Confermo di voler eliminare definitivamente il mio account e tutti i dati associati
+                </label>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="modal">
+                Annulla
+              </button>
+              <button type="submit" class="btn btn-danger flex-fill">
+                <i class="fas fa-trash me-1"></i>Elimina Account
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+
+  <script>
+    // State Management
+    let currentUser = null; 
+    let posts = []; 
+    let currentReviewRating = 0; 
+    let reviews = [];
+    let postComments = {}; // Memorizza commenti per ogni post
+
+    document.addEventListener('DOMContentLoaded', function(){ checkAuth(); setupEventListeners(); loadTestimonials(); });
+
+    function setupEventListeners(){
+      const postContent = document.getElementById('post-content');
+      if(postContent){
+        postContent.addEventListener('input', function(){ const cc = document.getElementById('char-count'); if(cc){ cc.textContent = this.value.length; } });
+        postContent.addEventListener('keydown', function(e){ if(e.ctrlKey && e.key==='Enter'){ createPost(); } });
+      }
+      
+      const reviewText = document.getElementById('review-text');
+      if(reviewText){
+        reviewText.addEventListener('input', function(){ const cc = document.getElementById('review-char-count'); if(cc){ cc.textContent = this.value.length; } });
+      }
+
+      const formFields = ['register-nome','register-cognome','register-username','register-email','register-corso','register-password'];
+      formFields.forEach(id=>{ const f=document.getElementById(id); if(f){ f.addEventListener('input',()=>validateField(f)); f.addEventListener('blur',()=>validateField(f)); } });
+      
+      // Rating stars
+      document.querySelectorAll('.rating-star').forEach(star => {
+        star.addEventListener('click', function(){
+          const rating = parseInt(this.dataset.rating);
+          setRating(rating);
         });
+      });
 
-        // Setup event listeners
-        function setupEventListeners() {
-            // Login form
-            document.getElementById('loginForm').addEventListener('submit', handleLogin);
-            
-            // Register form
-            document.getElementById('registerForm').addEventListener('submit', handleRegister);
-            
-            // Post form
-            document.getElementById('postForm').addEventListener('submit', handleCreatePost);
-            
-            // Review form
-            document.getElementById('addReviewForm').addEventListener('submit', handleAddReview);
-            
-            // Delete account form
-            document.getElementById('deleteAccountForm').addEventListener('submit', handleDeleteAccount);
-            
-            // File input
-            document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-            
-            // Drag and drop
-            const uploadArea = document.getElementById('fileUploadArea');
-            uploadArea.addEventListener('dragover', handleDragOver);
-            uploadArea.addEventListener('dragleave', handleDragLeave);
-            uploadArea.addEventListener('drop', handleFileDrop);
+      // Review photo preview
+      const reviewPhoto = document.getElementById('review-photo');
+      if(reviewPhoto){
+        reviewPhoto.addEventListener('change', previewReviewPhoto);
+      }
+
+      // Post form
+      document.getElementById('postForm').addEventListener('submit', handleCreatePost);
+      
+      // Delete account form
+      document.getElementById('deleteAccountForm').addEventListener('submit', handleDeleteAccount);
+      
+      // File input
+      document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+      
+      // Drag and drop
+      const uploadArea = document.getElementById('fileUploadArea');
+      uploadArea.addEventListener('dragover', handleDragOver);
+      uploadArea.addEventListener('dragleave', handleDragLeave);
+      uploadArea.addEventListener('drop', handleFileDrop);
+    }
+
+    // ======== MARKDOWN FUNCTIONS - RIPRISTINATE! ========
+    // Markdown setup
+    marked.setOptions({ breaks:true, gfm:true });
+    function renderMarkdown(md){ const raw = marked.parse(md||''); return DOMPurify.sanitize(raw, { USE_PROFILES:{ html:true } }); }
+    function hljsApply(el){ el.querySelectorAll('pre code').forEach(block=>{ try{ hljs.highlightElement(block);}catch(e){} }); }
+    
+    function mdWrap(left,right,block){ 
+      const ta=document.getElementById('post-content'); 
+      const s=ta.selectionStart,e=ta.selectionEnd; 
+      const before=ta.value.substring(0,s),sel=ta.value.substring(s,e),after=ta.value.substring(e); 
+      const wrapped = block? `${before}${left}${sel||'\n'}${right}${after}`: `${before}${left}${sel||'testo'}${right}${after}`; 
+      ta.value=wrapped; 
+      ta.focus(); 
+      document.getElementById('char-count').textContent=ta.value.length; 
+    }
+    
+    function insertLink(){ 
+      const url=prompt('Inserisci URL:'); 
+      if(!url) return; 
+      const ta=document.getElementById('post-content'); 
+      const s=ta.selectionStart,e=ta.selectionEnd; 
+      const sel=ta.value.substring(s,e)||'link'; 
+      ta.setRangeText(`[${sel}](${url})`, s, e, 'end'); 
+      document.getElementById('char-count').textContent=ta.value.length; 
+    }
+    
+    function triggerImagePick(){ 
+      document.getElementById('image-input').click(); 
+    }
+
+    document.addEventListener('change', async (e)=>{
+      if(e.target && e.target.id==='image-input'){
+        const file=e.target.files[0]; if(!file) return;
+        try{
+          const fd=new FormData(); fd.append('file', file);
+          const res=await fetch('/api/upload',{ method:'POST', body: fd });
+          const data=await res.json(); if(!res.ok) throw new Error(data.error||'Upload fallito');
+          const ta=document.getElementById('post-content'); const md=`\n![](${data.url})\n`; const pos=ta.selectionStart; ta.setRangeText(md,pos,pos,'end'); document.getElementById('char-count').textContent=ta.value.length; showAlert('Immagine caricata','success');
+        }catch(err){ showAlert(err.message,'danger'); }
+        e.target.value='';
+      }
+    });
+
+    function previewPost(){ 
+      const md=document.getElementById('post-content').value; 
+      const html=renderMarkdown(md); 
+      const box=document.getElementById('post-preview'); 
+      const body=document.getElementById('post-preview-body'); 
+      body.innerHTML=html; 
+      box.style.display='block'; 
+      hljsApply(body); 
+    }
+
+    // ======== FILE HANDLING FUNCTIONS ========
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        showFilePreview(file);
+      }
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('dragover');
+    }
+
+    function handleDragLeave(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+    }
+
+    function handleFileDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        document.getElementById('fileInput').files = files;
+        showFilePreview(files[0]);
+      }
+    }
+
+    function showFilePreview(file) {
+      const preview = document.getElementById('filePreview');
+      const fileType = file.type.split('/')[0];
+      
+      if (fileType === 'image') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          preview.innerHTML = `
+            <div class="d-flex align-items-center gap-3">
+              <img src="${e.target.result}" alt="Preview" style="max-width: 150px; max-height: 150px; border-radius: 10px;">
+              <div>
+                <p class="mb-1"><strong>${file.name}</strong></p>
+                <p class="text-muted small mb-0">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFilePreview()">
+                  <i class="fas fa-trash"></i> Rimuovi
+                </button>
+              </div>
+            </div>
+          `;
+        };
+        reader.readAsDataURL(file);
+      } else if (fileType === 'video') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          preview.innerHTML = `
+            <div class="d-flex align-items-center gap-3">
+              <video controls style="max-width: 200px; max-height: 150px; border-radius: 10px;">
+                <source src="${e.target.result}" type="${file.type}">
+                Il tuo browser non supporta il tag video.
+              </video>
+              <div>
+                <p class="mb-1"><strong>${file.name}</strong></p>
+                <p class="text-muted small mb-0">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFilePreview()">
+                  <i class="fas fa-trash"></i> Rimuovi
+                </button>
+              </div>
+            </div>
+          `;
+        };
+        reader.readAsDataURL(file);
+      }
+      
+      preview.classList.remove('d-none');
+    }
+
+    function clearFilePreview() {
+      document.getElementById('filePreview').classList.add('d-none');
+      document.getElementById('fileInput').value = '';
+    }
+
+    // Post creation with files
+    async function handleCreatePost(e) {
+      e.preventDefault();
+      
+      const content = document.getElementById('post-content').value.trim();
+      const fileInput = document.getElementById('fileInput');
+      
+      if (!content) {
+        showAlert('Il contenuto del post è richiesto', 'warning');
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('content', content);
+      
+      if (fileInput.files[0]) {
+        formData.append('file', fileInput.files[0]);
+      }
+      
+      try {
+        const response = await fetch('/api/posts', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.message || data.post) {
+          document.getElementById('postForm').reset();
+          clearFilePreview();
+          document.getElementById('char-count').textContent = '0';
+          document.getElementById('post-preview').style.display = 'none';
+          showAlert('Post pubblicato con successo!', 'success');
+          loadPosts();
+        } else {
+          showAlert(data.error || 'Errore durante la pubblicazione', 'danger');
         }
+      } catch (error) {
+        console.error('Create post error:', error);
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
 
-        // Authentication functions
-        async function checkAuth() {
-            try {
-                const response = await fetch('/api/user/current');
-                const data = await response.json();
-                
-                if (data.logged_in) {
-                    currentUser = data.user;
-                    updateUIForLoggedInUser();
-                } else {
-                    updateUIForLoggedOutUser();
-                }
-            } catch (error) {
-                console.error('Error checking auth:', error);
-                updateUIForLoggedOutUser();
-            }
+    // ======== ACCOUNT DELETION FUNCTIONS ========
+    function showSettings() {
+      if (!currentUser) return;
+      
+      document.getElementById('currentUserInfo').innerHTML = `
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Username:</strong> ${currentUser.username}</p>
+            <p><strong>Email:</strong> ${currentUser.email || currentUser.user?.email || 'Non disponibile'}</p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Nome:</strong> ${currentUser.nome || currentUser.user?.nome || 'Non specificato'}</p>
+            <p><strong>Corso:</strong> ${currentUser.corso || currentUser.user?.corso || 'Non specificato'}</p>
+          </div>
+        </div>
+      `;
+      
+      new bootstrap.Modal(document.getElementById('settingsModal')).show();
+    }
+
+    function showDeleteAccountModal() {
+      bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+      setTimeout(() => {
+        new bootstrap.Modal(document.getElementById('deleteAccountModal')).show();
+      }, 300);
+    }
+
+    async function handleDeleteAccount(e) {
+      e.preventDefault();
+      
+      const reason = document.getElementById('deletionReason').value;
+      const feedback = document.getElementById('deletionFeedback').value;
+      const confirmed = document.getElementById('confirmDeletion').checked;
+      
+      if (!confirmed) {
+        showAlert('Devi confermare l\'eliminazione dell\'account', 'warning');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/delete-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason, feedback })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success || data.message) {
+          bootstrap.Modal.getInstance(document.getElementById('deleteAccountModal')).hide();
+          updateUIForLoggedOutUser();
+          showAlert('Account eliminato con successo. Grazie per il feedback!', 'info');
+          loadPosts();
+          loadActiveUsers();
+        } else {
+          showAlert(data.error || 'Errore durante l\'eliminazione dell\'account', 'danger');
         }
+      } catch (error) {
+        console.error('Delete account error:', error);
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
 
-        function updateUIForLoggedInUser() {
-            document.getElementById('authButtons').classList.add('d-none');
-            document.getElementById('userMenu').classList.remove('d-none');
-            document.getElementById('currentUsername').textContent = currentUser.username;
-            document.getElementById('createPostForm').classList.remove('d-none');
-            document.getElementById('reviewForm').classList.remove('d-none');
+    function setRating(rating){
+      currentReviewRating = rating;
+      document.getElementById('review-rating-value').value = rating;
+      
+      document.querySelectorAll('.rating-star').forEach((star, index) => {
+        if(index < rating){
+          star.classList.add('active');
+        } else {
+          star.classList.remove('active');
         }
+      });
+    }
 
-        function updateUIForLoggedOutUser() {
-            document.getElementById('authButtons').classList.remove('d-none');
-            document.getElementById('userMenu').classList.add('d-none');
-            document.getElementById('createPostForm').classList.add('d-none');
-            document.getElementById('reviewForm').classList.add('d-none');
-            currentUser = null;
+    function previewReviewPhoto(){
+      const file = this.files[0];
+      if(!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e){
+        const preview = document.getElementById('review-avatar-preview');
+        preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Preview">`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 💬 FUNZIONI COMMENTI - NUOVE FUNZIONALITÀ
+    async function toggleComments(postId) {
+      const commentsSection = document.getElementById(`comments-${postId}`);
+      
+      if (commentsSection.style.display === 'none' || !commentsSection.style.display) {
+        // Mostra commenti
+        commentsSection.style.display = 'block';
+        await loadComments(postId);
+      } else {
+        // Nascondi commenti
+        commentsSection.style.display = 'none';
+      }
+    }
+
+    async function loadComments(postId) {
+      const container = document.getElementById(`comments-list-${postId}`);
+      if (!container) return;
+      
+      container.innerHTML = '<div class="text-muted text-center p-2"><i class="fas fa-spinner fa-spin me-2"></i>Caricamento commenti...</div>';
+      
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments`);
+        const data = await res.json();
+        
+        if (res.ok && data.comments) {
+          postComments[postId] = data.comments;
+          renderComments(postId, data.comments);
+        } else {
+          container.innerHTML = '<div class="text-muted text-center p-2">Errore caricamento commenti</div>';
         }
+      } catch (e) {
+        container.innerHTML = '<div class="text-muted text-center p-2">Errore di connessione</div>';
+      }
+    }
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            
-            const formData = {
-                username: document.getElementById('loginUsername').value,
-                password: document.getElementById('loginPassword').value
-            };
-            
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    currentUser = data.user;
-                    updateUIForLoggedInUser();
-                    bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
-                    showAlert('Login effettuato con successo!', 'success');
-                    loadPosts(); // Reload posts to show user-specific actions
-                } else {
-                    showAlert(data.error || 'Errore durante il login', 'danger');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        async function handleRegister(e) {
-            e.preventDefault();
-            
-            const formData = {
-                username: document.getElementById('registerUsername').value,
-                email: document.getElementById('registerEmail').value,
-                password: document.getElementById('registerPassword').value,
-                bio: document.getElementById('registerBio').value,
-                course: document.getElementById('registerCourse').value
-            };
-            
-            try {
-                const response = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    currentUser = data.user;
-                    updateUIForLoggedInUser();
-                    bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
-                    showAlert('Registrazione completata con successo!', 'success');
-                    loadPosts();
-                } else {
-                    showAlert(data.error || 'Errore durante la registrazione', 'danger');
-                }
-            } catch (error) {
-                console.error('Register error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        async function logout() {
-            try {
-                await fetch('/api/logout', { method: 'POST' });
-                updateUIForLoggedOutUser();
-                showAlert('Logout effettuato con successo!', 'success');
-                loadPosts(); // Reload posts to hide user-specific actions
-            } catch (error) {
-                console.error('Logout error:', error);
-            }
-        }
-
-        // Account deletion functions
-        function showSettings() {
-            if (!currentUser) return;
-            
-            document.getElementById('currentUserInfo').innerHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Username:</strong> ${currentUser.username}</p>
-                        <p><strong>Email:</strong> ${currentUser.email}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Bio:</strong> ${currentUser.bio || 'Non specificata'}</p>
-                        <p><strong>Corso:</strong> ${currentUser.course || 'Non specificato'}</p>
-                    </div>
+    function renderComments(postId, comments) {
+      const container = document.getElementById(`comments-list-${postId}`);
+      if (!container) return;
+      
+      if (comments.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center p-2"><i class="fas fa-comment me-2"></i>Nessun commento ancora. Sii il primo!</div>';
+        return;
+      }
+      
+      container.innerHTML = comments.map(comment => {
+        const isAuthor = currentUser && currentUser.id && (comment.author.id === currentUser.id);
+        const deleteBtn = isAuthor ? 
+          `<button class="comment-delete" onclick="deleteComment(${comment.id}, ${postId})" title="Elimina commento">
+             <i class="fas fa-trash"></i>
+           </button>` : '';
+        
+        return `
+          <div class="comment-item" id="comment-${comment.id}">
+            <div class="d-flex">
+              <div class="comment-avatar" style="background:${comment.author.avatar_color}">${comment.author.initials}</div>
+              <div class="flex-grow-1">
+                <div class="comment-content">${comment.content}</div>
+                <div class="comment-meta">
+                  <span class="comment-author">${comment.author.nome} ${comment.author.cognome}</span>
+                  <span>•</span>
+                  <span>${formatDate(comment.created_at)}</span>
+                  ${deleteBtn}
                 </div>
-            `;
-            
-            new bootstrap.Modal(document.getElementById('settingsModal')).show();
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function addComment(postId) {
+      const textarea = document.getElementById(`comment-input-${postId}`);
+      const content = textarea.value.trim();
+      
+      if (!content) {
+        showAlert('Scrivi un commento prima di inviare', 'danger');
+        return;
+      }
+      
+      if (content.length > 1000) {
+        showAlert('Commento troppo lungo (max 1000 caratteri)', 'danger');
+        return;
+      }
+      
+      const btn = document.getElementById(`comment-btn-${postId}`);
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Invio...';
+      
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          textarea.value = '';
+          await loadComments(postId); // Ricarica commenti
+          showAlert('💬 Commento aggiunto!', 'success');
+          
+          // Aggiorna il contatore commenti nel post
+          updateCommentsCount(postId);
+        } else {
+          showAlert(data.error || 'Errore durante l\'invio', 'danger');
         }
+      } catch (e) {
+        showAlert('Errore di connessione', 'danger');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
 
-        function showDeleteAccountModal() {
-            bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
-            new bootstrap.Modal(document.getElementById('deleteAccountModal')).show();
-        }
-
-        async function handleDeleteAccount(e) {
-            e.preventDefault();
-            
-            const reason = document.getElementById('deletionReason').value;
-            const feedback = document.getElementById('deletionFeedback').value;
-            const confirmed = document.getElementById('confirmDeletion').checked;
-            
-            if (!confirmed) {
-                showAlert('Devi confermare l\'eliminazione dell\'account', 'warning');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/delete-account', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reason, feedback })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('deleteAccountModal')).hide();
-                    updateUIForLoggedOutUser();
-                    showAlert('Account eliminato con successo. Grazie per il feedback!', 'info');
-                    loadPosts();
-                    loadUsers();
-                } else {
-                    showAlert(data.error || 'Errore durante l\'eliminazione dell\'account', 'danger');
-                }
-            } catch (error) {
-                console.error('Delete account error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        // File handling functions
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (file) {
-                showFilePreview(file);
-            }
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.currentTarget.classList.add('dragover');
-        }
-
-        function handleDragLeave(e) {
-            e.preventDefault();
-            e.currentTarget.classList.remove('dragover');
-        }
-
-        function handleFileDrop(e) {
-            e.preventDefault();
-            e.currentTarget.classList.remove('dragover');
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                document.getElementById('fileInput').files = files;
-                showFilePreview(files[0]);
-            }
-        }
-
-        function showFilePreview(file) {
-            const preview = document.getElementById('filePreview');
-            const fileType = file.type.split('/')[0];
-            
-            if (fileType === 'image') {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.innerHTML = `
-                        <div class="d-flex align-items-center gap-3">
-                            <img src="${e.target.result}" alt="Preview" style="max-width: 150px; max-height: 150px; border-radius: 10px;">
-                            <div>
-                                <p class="mb-1"><strong>${file.name}</strong></p>
-                                <p class="text-muted small mb-0">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                                <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFilePreview()">
-                                    <i class="bi bi-trash"></i> Rimuovi
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                };
-                reader.readAsDataURL(file);
-            } else if (fileType === 'video') {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.innerHTML = `
-                        <div class="d-flex align-items-center gap-3">
-                            <video controls style="max-width: 200px; max-height: 150px; border-radius: 10px;">
-                                <source src="${e.target.result}" type="${file.type}">
-                                Il tuo browser non supporta il tag video.
-                            </video>
-                            <div>
-                                <p class="mb-1"><strong>${file.name}</strong></p>
-                                <p class="text-muted small mb-0">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                                <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearFilePreview()">
-                                    <i class="bi bi-trash"></i> Rimuovi
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                };
-                reader.readAsDataURL(file);
-            }
-            
-            preview.classList.remove('d-none');
-        }
-
-        function clearFilePreview() {
-            document.getElementById('filePreview').classList.add('d-none');
-            document.getElementById('fileInput').value = '';
-        }
-
-        // Post functions
-        async function handleCreatePost(e) {
-            e.preventDefault();
-            
-            const content = document.getElementById('postContent').value.trim();
-            const fileInput = document.getElementById('fileInput');
-            
-            if (!content) {
-                showAlert('Il contenuto del post è richiesto', 'warning');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('content', content);
-            
-            if (fileInput.files[0]) {
-                formData.append('file', fileInput.files[0]);
-            }
-            
-            try {
-                const response = await fetch('/api/posts', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById('postForm').reset();
-                    clearFilePreview();
-                    showAlert('Post pubblicato con successo!', 'success');
-                    loadPosts();
-                } else {
-                    showAlert(data.error || 'Errore durante la pubblicazione', 'danger');
-                }
-            } catch (error) {
-                console.error('Create post error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        async function loadPosts() {
-            try {
-                const response = await fetch('/api/posts');
-                const data = await response.json();
-                
-                const container = document.getElementById('postsContainer');
-                
-                if (data.posts && data.posts.length > 0) {
-                    container.innerHTML = data.posts.map(post => createPostHTML(post)).join('');
-                } else {
-                    container.innerHTML = `
-                        <div class="glass-card text-center">
-                            <i class="bi bi-chat-left-text fs-1 text-muted mb-3"></i>
-                            <h5>Nessun post ancora</h5>
-                            <p class="text-muted">Sii il primo a condividere qualcosa con la community!</p>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Load posts error:', error);
-                showAlert('Errore nel caricamento dei post', 'danger');
-            }
-        }
-
-        function createPostHTML(post) {
-            const userInitial = post.username.charAt(0).toUpperCase();
-            const postDate = new Date(post.created_at).toLocaleDateString('it-IT', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            let mediaHTML = '';
-            if (post.image_filename) {
-                mediaHTML = `<img src="/static/uploads/${post.image_filename}" alt="Post image" class="img-fluid">`;
-            } else if (post.video_filename) {
-                mediaHTML = `
-                    <video controls class="img-fluid">
-                        <source src="/static/uploads/${post.video_filename}" type="video/mp4">
-                        Il tuo browser non supporta il tag video.
-                    </video>
-                `;
-            }
-
-            return `
-                <div class="post-card fade-in">
-                    <div class="post-header">
-                        <div class="user-avatar">${userInitial}</div>
-                        <div class="flex-grow-1">
-                            <div class="fw-bold">${post.username}</div>
-                            <div class="text-muted small">${postDate}</div>
-                        </div>
-                        ${post.user_can_delete ? `
-                            <button class="btn btn-outline-danger btn-sm" onclick="deletePost(${post.id})">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        ` : ''}
-                    </div>
-                    
-                    <div class="post-content">
-                        <p>${post.content.replace(/\n/g, '<br>')}</p>
-                        ${mediaHTML}
-                    </div>
-                    
-                    <div class="post-actions">
-                        <button class="action-btn ${post.user_liked ? 'active' : ''}" onclick="toggleLike(${post.id})">
-                            <i class="bi bi-heart${post.user_liked ? '-fill' : ''}"></i>
-                            <span id="likes-count-${post.id}">${post.likes_count}</span>
-                        </button>
-                        
-                        <button class="action-btn" onclick="toggleComments(${post.id})">
-                            <i class="bi bi-chat-left"></i>
-                            <span id="comments-count-${post.id}">${post.comments_count}</span> Commenti
-                        </button>
-                    </div>
-                    
-                    <div id="comments-section-${post.id}" class="comments-section d-none">
-                        <div id="comments-list-${post.id}"></div>
-                        
-                        ${currentUser ? `
-                            <div class="comment-form">
-                                <div class="d-flex gap-2">
-                                    <textarea class="comment-input" id="comment-input-${post.id}" 
-                                        placeholder="Scrivi un commento..." maxlength="1000"></textarea>
-                                    <button class="btn btn-primary" onclick="addComment(${post.id})">
-                                        <i class="bi bi-send"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        ` : `
-                            <div class="text-center text-muted py-3">
-                                <i class="bi bi-lock me-1"></i>
-                                <a href="#" onclick="showLogin()" class="text-decoration-none">Accedi per commentare</a>
-                            </div>
-                        `}
-                    </div>
-                </div>
-            `;
-        }
-
-        async function deletePost(postId) {
-            if (!confirm('Sei sicuro di voler eliminare questo post?')) return;
-            
-            try {
-                const response = await fetch(`/api/posts/${postId}`, {
-                    method: 'DELETE'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showAlert('Post eliminato con successo', 'success');
-                    loadPosts();
-                } else {
-                    showAlert(data.error || 'Errore durante l\'eliminazione', 'danger');
-                }
-            } catch (error) {
-                console.error('Delete post error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        async function toggleLike(postId) {
-            if (!currentUser) {
-                showLogin();
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/posts/${postId}/like`, {
-                    method: 'POST'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById(`likes-count-${postId}`).textContent = data.likes_count;
-                    // Update button appearance
-                    const likeBtn = document.querySelector(`button[onclick="toggleLike(${postId})"]`);
-                    const icon = likeBtn.querySelector('i');
-                    
-                    if (data.action === 'added') {
-                        likeBtn.classList.add('active');
-                        icon.classList.remove('bi-heart');
-                        icon.classList.add('bi-heart-fill');
-                    } else {
-                        likeBtn.classList.remove('active');
-                        icon.classList.remove('bi-heart-fill');
-                        icon.classList.add('bi-heart');
-                    }
-                } else {
-                    showAlert(data.error || 'Errore durante l\'operazione', 'danger');
-                }
-            } catch (error) {
-                console.error('Toggle like error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        // Comments functions
-        async function toggleComments(postId) {
-            const commentsSection = document.getElementById(`comments-section-${postId}`);
-            
-            if (commentsSection.classList.contains('d-none')) {
-                commentsSection.classList.remove('d-none');
-                await loadComments(postId);
-            } else {
-                commentsSection.classList.add('d-none');
-            }
-        }
-
-        async function loadComments(postId) {
-            try {
-                const response = await fetch(`/api/posts/${postId}/comments`);
-                const data = await response.json();
-                
-                const commentsList = document.getElementById(`comments-list-${postId}`);
-                
-                if (data.comments && data.comments.length > 0) {
-                    commentsList.innerHTML = data.comments.map(comment => createCommentHTML(comment, postId)).join('');
-                } else {
-                    commentsList.innerHTML = `
-                        <div class="text-center text-muted py-3">
-                            <i class="bi bi-chat-left me-1"></i>
-                            Nessun commento ancora. Sii il primo a commentare!
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Load comments error:', error);
-            }
-        }
-
-        function createCommentHTML(comment, postId) {
-            const userInitial = comment.username.charAt(0).toUpperCase();
-            const commentDate = new Date(comment.created_at).toLocaleDateString('it-IT', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            return `
-                <div class="comment-item" id="comment-${comment.id}">
-                    <div class="comment-header">
-                        <div class="comment-user">
-                            <div class="comment-avatar">${userInitial}</div>
-                            <span class="fw-bold">${comment.username}</span>
-                            <span class="text-muted small ms-2">${commentDate}</span>
-                        </div>
-                        ${comment.user_can_delete ? `
-                            <button class="btn btn-outline-danger btn-sm" onclick="deleteComment(${comment.id}, ${postId})">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        ` : ''}
-                    </div>
-                    <div class="comment-content">
-                        ${comment.content.replace(/\n/g, '<br>')}
-                    </div>
-                </div>
-            `;
-        }
-
-        async function addComment(postId) {
-            if (!currentUser) {
-                showLogin();
-                return;
-            }
-            
-            const input = document.getElementById(`comment-input-${postId}`);
-            const content = input.value.trim();
-            
-            if (!content) return;
-            
-            try {
-                const response = await fetch(`/api/posts/${postId}/comments`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    input.value = '';
-                    await loadComments(postId);
-                    
-                    // Update comments count
-                    const currentCount = parseInt(document.getElementById(`comments-count-${postId}`).textContent);
-                    document.getElementById(`comments-count-${postId}`).textContent = currentCount + 1;
-                } else {
-                    showAlert(data.error || 'Errore durante l\'invio del commento', 'danger');
-                }
-            } catch (error) {
-                console.error('Add comment error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        async function deleteComment(commentId, postId) {
-            if (!confirm('Sei sicuro di voler eliminare questo commento?')) return;
-            
-            try {
-                const response = await fetch(`/api/comments/${commentId}`, {
-                    method: 'DELETE'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Remove comment from DOM with animation
-                    const commentElement = document.getElementById(`comment-${commentId}`);
-                    commentElement.style.transition = 'all 0.3s ease';
-                    commentElement.style.transform = 'translateX(-100%)';
-                    commentElement.style.opacity = '0';
-                    
-                    setTimeout(() => {
-                        commentElement.remove();
-                        
-                        // Update comments count
-                        const currentCount = parseInt(document.getElementById(`comments-count-${postId}`).textContent);
-                        document.getElementById(`comments-count-${postId}`).textContent = Math.max(0, currentCount - 1);
-                        
-                        // Reload comments to show updated list
-                        loadComments(postId);
-                    }, 300);
-                } else {
-                    showAlert(data.error || 'Errore durante l\'eliminazione', 'danger');
-                }
-            } catch (error) {
-                console.error('Delete comment error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        // Users functions
-        async function loadUsers() {
-            try {
-                const response = await fetch('/api/users');
-                const data = await response.json();
-                
-                const container = document.getElementById('usersContainer');
-                
-                if (data.users && data.users.length > 0) {
-                    container.innerHTML = data.users.map(user => createUserHTML(user)).join('');
-                } else {
-                    container.innerHTML = `
-                        <div class="col-12 text-center">
-                            <div class="glass-card">
-                                <i class="bi bi-people fs-1 text-muted mb-3"></i>
-                                <h5>Nessun utente ancora</h5>
-                                <p class="text-muted">La community sta crescendo!</p>
-                            </div>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Load users error:', error);
-            }
-        }
-
-        function createUserHTML(user) {
-            const userInitial = user.username.charAt(0).toUpperCase();
-            const joinDate = new Date(user.created_at).toLocaleDateString('it-IT', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-
-            return `
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="user-card">
-                        <div class="user-avatar">${userInitial}</div>
-                        <h6 class="fw-bold">${user.username}</h6>
-                        <p class="text-muted small mb-2">${user.bio || 'Nessuna bio'}</p>
-                        <p class="text-muted small mb-2">
-                            <i class="bi bi-book me-1"></i>${user.course || 'Corso non specificato'}
-                        </p>
-                        <div class="d-flex justify-content-between text-muted small">
-                            <span><i class="bi bi-calendar me-1"></i>${joinDate}</span>
-                            <span><i class="bi bi-chat-left me-1"></i>${user.posts_count} post</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Reviews functions
-        async function handleAddReview(e) {
-            e.preventDefault();
-            
-            const formData = {
-                course_name: document.getElementById('reviewCourseName').value,
-                rating: parseInt(document.getElementById('reviewRating').value),
-                comment: document.getElementById('reviewComment').value
-            };
-            
-            try {
-                const response = await fetch('/api/reviews', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById('addReviewForm').reset();
-                    showAlert('Recensione pubblicata con successo!', 'success');
-                    loadReviews();
-                } else {
-                    showAlert(data.error || 'Errore durante la pubblicazione', 'danger');
-                }
-            } catch (error) {
-                console.error('Add review error:', error);
-                showAlert('Errore di connessione', 'danger');
-            }
-        }
-
-        async function loadReviews() {
-            try {
-                const response = await fetch('/api/reviews');
-                const data = await response.json();
-                
-                const container = document.getElementById('reviewsContainer');
-                
-                if (data.reviews && data.reviews.length > 0) {
-                    container.innerHTML = data.reviews.map(review => createReviewHTML(review)).join('');
-                } else {
-                    container.innerHTML = `
-                        <div class="text-center">
-                            <i class="bi bi-star fs-1 text-muted mb-3"></i>
-                            <h5>Nessuna recensione ancora</h5>
-                            <p class="text-muted">Condividi la tua esperienza con un corso!</p>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Load reviews error:', error);
-            }
-        }
-
-        function createReviewHTML(review) {
-            const stars = '⭐'.repeat(review.rating);
-            const reviewDate = new Date(review.created_at).toLocaleDateString('it-IT', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-
-            return `
-                <div class="review-card">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="fw-bold mb-0">${review.course_name}</h6>
-                        <div class="rating">${stars}</div>
-                    </div>
-                    <p class="text-muted small mb-2">
-                        di <strong>${review.username}</strong> • ${reviewDate}
-                    </p>
-                    ${review.comment ? `<p class="mb-0">${review.comment}</p>` : ''}
-                </div>
-            `;
-        }
-
-        // Navigation functions
-        function showSection(sectionName) {
-            // Hide all sections
-            document.querySelectorAll('.section').forEach(section => {
-                section.classList.add('d-none');
-            });
-            
-            // Show selected section
-            document.getElementById(sectionName + 'Section').classList.remove('d-none');
-            
-            // Update nav buttons
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            event.target.classList.add('active');
-        }
-
-        function showLogin() {
-            new bootstrap.Modal(document.getElementById('loginModal')).show();
-        }
-
-        function showRegister() {
-            new bootstrap.Modal(document.getElementById('registerModal')).show();
-        }
-
-        // Utility functions
-        function showAlert(message, type) {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 350px;';
-            alertDiv.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            
-            document.body.appendChild(alertDiv);
+    async function deleteComment(commentId, postId) {
+      if (!confirm('Sei sicuro di voler eliminare questo commento?')) {
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if (res.ok) {
+          // Rimuovi commento dal DOM
+          const commentElement = document.getElementById(`comment-${commentId}`);
+          if (commentElement) {
+            commentElement.style.transition = 'all 0.3s ease';
+            commentElement.style.opacity = '0';
+            commentElement.style.transform = 'translateX(-20px)';
             
             setTimeout(() => {
-                alertDiv.remove();
-            }, 5000);
+              commentElement.remove();
+              // Se non ci sono più commenti, mostra messaggio
+              const container = document.getElementById(`comments-list-${postId}`);
+              if (container && container.children.length === 0) {
+                container.innerHTML = '<div class="text-muted text-center p-2"><i class="fas fa-comment me-2"></i>Nessun commento ancora. Sii il primo!</div>';
+              }
+            }, 300);
+          }
+          
+          // Aggiorna contatore
+          updateCommentsCount(postId);
+          showAlert('🗑️ Commento eliminato', 'success');
+        } else {
+          showAlert(data.error || 'Errore durante l\'eliminazione', 'danger');
         }
+      } catch (e) {
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
 
-        // Initialize tooltips and popovers
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Bootstrap tooltips
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
+    function updateCommentsCount(postId) {
+      // Ricarica il post specifico per aggiornare il contatore
+      fetch(`/api/posts`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.posts) {
+            const post = data.posts.find(p => p.id === postId);
+            if (post) {
+              const counter = document.querySelector(`[onclick="toggleComments(${postId})"] .comments-counter`);
+              if (counter) {
+                counter.textContent = post.comments_count > 0 ? `(${post.comments_count})` : '';
+              }
+            }
+          }
+        })
+        .catch(e => console.log('Errore aggiornamento contatore:', e));
+    }
+
+    // Testimonianze dinamiche
+    async function loadTestimonials(){
+      const container = document.getElementById('testimonials-container');
+      if(!container) return;
+      
+      try{
+        // Carica recensioni utenti
+        const res = await fetch('/api/reviews');
+        if(res.ok){
+          const data = await res.json();
+          reviews = data.reviews || [];
+        }
+        
+        // Testimonianze statiche + recensioni utenti
+        const staticTestimonials = [
+          {
+            name: "Elena Moretti",
+            course: "Frontend Developer • Milano", 
+            text: "CourseConnect mi ha cambiato la vita! Ho trovato il lavoro dei miei sogni grazie ai contatti fatti qui. La community è incredibilmente supportiva e sempre pronta ad aiutare.",
+            photo: "https://randomuser.me/api/portraits/women/1.jpg",
+            rating: 5,
+            isStatic: true
+          },
+          {
+            name: "Marco Bianchi", 
+            course: "UX Designer • Roma",
+            text: "Finalmente un posto dove i corsisti possono davvero connettersi! Ho imparato più dai progetti condivisi qui che in mesi di studio solitario. Consigliatissimo!",
+            photo: "https://randomuser.me/api/portraits/men/1.jpg", 
+            rating: 5,
+            isStatic: true
+          },
+          {
+            name: "Giulia Rossi",
+            course: "Digital Marketing Specialist • Napoli",
+            text: "La qualità delle discussioni qui è altissima. Ho ricevuto feedback prezioso sui miei progetti e ho stretto amicizie che durano ancora oggi. Un'esperienza trasformante!",
+            photo: "https://randomuser.me/api/portraits/women/2.jpg",
+            rating: 5, 
+            isStatic: true
+          }
+        ];
+        
+        const allTestimonials = [...staticTestimonials, ...reviews];
+        renderTestimonials(allTestimonials);
+        
+      } catch(e){
+        // Fallback a testimonianze statiche
+        const staticTestimonials = [
+          {
+            name: "Elena Moretti",
+            course: "Frontend Developer • Milano", 
+            text: "CourseConnect mi ha cambiato la vita! Ho trovato il lavoro dei miei sogni grazie ai contatti fatti qui. La community è incredibilmente supportiva e sempre pronta ad aiutare.",
+            photo: "https://randomuser.me/api/portraits/women/1.jpg",
+            rating: 5
+          },
+          {
+            name: "Marco Bianchi", 
+            course: "UX Designer • Roma",
+            text: "Finalmente un posto dove i corsisti possono davvero connettersi! Ho imparato più dai progetti condivisi qui che in mesi di studio solitario. Consigliatissimo!",
+            photo: "https://randomuser.me/api/portraits/men/1.jpg", 
+            rating: 5
+          },
+          {
+            name: "Giulia Rossi",
+            course: "Digital Marketing Specialist • Napoli",
+            text: "La qualità delle discussioni qui è altissima. Ho ricevuto feedback prezioso sui miei progetti e ho stretto amicizie che durano ancora oggi. Un'esperienza trasformante!",
+            photo: "https://randomuser.me/api/portraits/women/2.jpg",
+            rating: 5
+          }
+        ];
+        renderTestimonials(staticTestimonials);
+      }
+    }
+
+    function renderTestimonials(testimonials){
+      const container = document.getElementById('testimonials-container');
+      if(!container) return;
+      
+      if(testimonials.length === 0){
+        container.innerHTML = '<div class="text-center"><p class="text-muted">Nessuna recensione ancora. Sii il primo!</p></div>';
+        return;
+      }
+      
+      let html = '<div class="row">';
+      testimonials.forEach(t => {
+        const stars = '<i class="fas fa-star"></i>'.repeat(t.rating);
+        html += `
+          <div class="col-lg-4 mb-4">
+            <div class="testimonial-card fade-in">
+              <img src="${t.photo}" alt="${t.name}" class="testimonial-avatar" onerror="this.src='https://randomuser.me/api/portraits/men/1.jpg'">
+              <div class="testimonial-stars">${stars}</div>
+              <p class="testimonial-text">"${t.text}"</p>
+              <div class="testimonial-author">
+                <div class="testimonial-name">${t.name}</div>
+                <div class="testimonial-course">${t.course}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    async function submitReview(){
+      if(!currentUser){
+        showAlert('Devi essere loggato per lasciare una recensione', 'danger');
+        return;
+      }
+      
+      const text = document.getElementById('review-text').value.trim();
+      const location = document.getElementById('review-location').value.trim();
+      const photo = document.getElementById('review-photo').files[0];
+      
+      if(!text || !currentReviewRating || !photo){
+        showAlert('Compila tutti i campi obbligatori', 'danger');
+        return;
+      }
+      
+      const btn = document.getElementById('review-submit-btn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Pubblicando...';
+      
+      try{
+        // Upload foto
+        const formData = new FormData();
+        formData.append('file', photo);
+        
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
         });
-    </script>
+        
+        if(!uploadRes.ok) throw new Error('Upload foto fallito');
+        const uploadData = await uploadRes.json();
+        
+        // Invia recensione
+        const reviewData = {
+          text: text,
+          rating: currentReviewRating,
+          location: location,
+          photo_url: uploadData.url
+        };
+        
+        const reviewRes = await fetch('/api/reviews', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(reviewData)
+        });
+        
+        if(!reviewRes.ok) throw new Error('Invio recensione fallito');
+        
+        showAlert('🎉 Recensione pubblicata con successo!', 'success');
+        closeModal('reviewModal');
+        
+        // Reset form
+        document.getElementById('review-form').reset();
+        document.getElementById('review-avatar-preview').innerHTML = '';
+        setRating(0);
+        document.getElementById('review-char-count').textContent = '0';
+        
+        // Ricarica testimonianze
+        loadTestimonials();
+        
+      } catch(err){
+        showAlert(err.message, 'danger');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    async function sharePost(postId){ const url=`${location.origin}${location.pathname}#post-${postId}`; try{ if(navigator.share){ await navigator.share({ title:'CourseConnect', text:"Dai un'occhiata al mio post", url }); } else { await navigator.clipboard.writeText(url); showAlert('Link copiato negli appunti','success'); } } catch(e){} }
+
+    // Auth
+    async function checkAuth(){ 
+      try{ 
+        const response=await fetch('/api/me'); 
+        if(response.ok){ 
+          const data=await response.json(); 
+          if(data.authenticated && data.user){ 
+            currentUser=data.user; 
+            showUserSection(); 
+            loadPosts(); 
+          } else { 
+            showGuestSection(); 
+          } 
+        } else { 
+          showGuestSection(); 
+        } 
+      } catch(e){ 
+        showGuestSection(); 
+      } 
+    }
+
+    async function login(){ 
+      const username=document.getElementById('login-username').value.trim(); 
+      const password=document.getElementById('login-password').value; 
+      if(!username||!password){ 
+        showAlert('Inserisci username e password','danger'); 
+        return; 
+      } 
+      try{ 
+        const response=await fetch('/api/login',{ 
+          method:'POST', 
+          headers:{'Content-Type':'application/json'}, 
+          body: JSON.stringify({ username, password }) 
+        }); 
+        const data=await response.json(); 
+        if(response.ok && (data.user || data.message)){ 
+          currentUser=data.user; 
+          showAlert('Login effettuato con successo!','success'); 
+          closeModal('loginModal'); 
+          showUserSection(); 
+          loadPosts(); 
+        } else { 
+          showAlert(data.error||'Errore durante il login','danger'); 
+        } 
+      } catch(e){ 
+        showAlert('Errore di connessione','danger'); 
+      } 
+    }
+
+    function validateField(field){ const value=field.value.trim(); let ok=true; field.classList.remove('is-valid','is-invalid'); switch(field.id){ case 'register-nome': case 'register-cognome': case 'register-username': ok=value.length>=2; break; case 'register-email': ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); break; case 'register-corso': ok=value!==''; break; case 'register-password': ok=value.length>=6; break; } field.classList.add(ok?'is-valid':'is-invalid'); return ok; }
+    function validateForm(){ const ids=['register-nome','register-cognome','register-username','register-email','register-corso','register-password']; let ok=true; ids.forEach(id=>{ const f=document.getElementById(id); if(!validateField(f)) ok=false; }); return ok; }
+
+    async function register(){ if(!validateForm()){ showAlert('Correggi gli errori nel form prima di continuare','danger'); return; } const formData={ nome:document.getElementById('register-nome').value.trim(), cognome:document.getElementById('register-cognome').value.trim(), username:document.getElementById('register-username').value.trim(), email:document.getElementById('register-email').value.trim(), corso:document.getElementById('register-corso').value, password:document.getElementById('register-password').value, bio:document.getElementById('register-bio').value.trim() };
+      const btn=document.getElementById('register-btn'); const orig=btn.innerHTML; btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin me-2"></i>Registrazione...';
+      try{ const res=await fetch('/api/register',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(formData) }); const data=await res.json(); if(res.ok && (data.user || data.message)){ currentUser=data.user; showAlert('🎉 Benvenuto in CourseConnect! La tua storia di successo inizia ora!','success'); closeModal('registerModal'); showUserSection(); loadPosts(); loadActiveUsers(); } else { showAlert(data.error||'Errore durante la registrazione','danger'); } } catch(err){ showAlert('Errore di connessione. Riprova.','danger'); } finally { btn.disabled=false; btn.innerHTML=orig; }
+    }
+
+    async function logout(){ try{ await fetch('/api/logout',{ method:'POST' }); currentUser=null; showAlert('Logout effettuato','success'); showGuestSection(); } catch(e){ showAlert('Errore durante il logout','danger'); } }
+
+    function showGuestSection(){ document.getElementById('guest-section').style.display='block'; document.getElementById('user-section').style.display='none'; document.getElementById('nav-login').style.display='block'; document.getElementById('nav-register').style.display='block'; document.getElementById('nav-user').style.display='none'; document.getElementById('nav-review').style.display='none'; }
+    
+    function showUserSection(){ document.getElementById('guest-section').style.display='none'; document.getElementById('user-section').style.display='block'; document.getElementById('nav-login').style.display='none'; document.getElementById('nav-register').style.display='none'; document.getElementById('nav-user').style.display='block'; document.getElementById('nav-review').style.display='block'; if(currentUser){ document.getElementById('user-name').textContent=currentUser.nome || currentUser.username; } loadActiveUsers(); }
+
+    function updateUIForLoggedInUser() {
+      showUserSection();
+    }
+
+    function updateUIForLoggedOutUser() {
+      showGuestSection();
+    }
+
+    // Users sidebar
+    async function loadActiveUsers(){ const box=document.getElementById('active-users'); if(!box) return; box.innerHTML='<div class="text-muted">Caricamento...</div>'; try{ const res=await fetch('/api/users?limit=10'); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Errore'); if(!data.users||data.users.length===0){ box.innerHTML='<small class="text-muted">Nessun utente ancora.</small>'; return; } box.innerHTML = data.users.map(u=>`<div class="d-flex align-items-center mb-3"><div class="user-avatar" style="background:${u.avatar_color}; width:40px; height:40px;">${u.initials}</div><div><div class="fw-bold">${u.nome} ${u.cognome}</div><small class="text-muted">@${u.username} • ${u.corso}</small></div></div>`).join(''); } catch(e){ box.innerHTML=`<div class="text-danger"><small>${e.message}</small></div>`; } }
+
+    // Posts
+    async function loadPosts(){ const container=document.getElementById('posts-container'); container.innerHTML='<div class="loading"><div class="spinner"></div><p>Caricamento post...</p></div>'; try{ const res=await fetch('/api/posts'); const data=await res.json(); if(res.ok){ posts=data.posts; renderPosts(); } else { container.innerHTML=`<div class="alert alert-danger">Errore: ${data.error}</div>`; } } catch(e){ container.innerHTML='<div class="alert alert-danger">Errore di connessione</div>'; } }
+
+    function renderPosts(){ 
+      const container=document.getElementById('posts-container'); 
+      if(posts.length===0){ 
+        container.innerHTML = `<div class="glass-card p-4 text-center"><i class="fas fa-comments fa-3x mb-3" style="color:var(--text-muted)"></i><h5>Inizia la Conversazione!</h5><p class="text-muted">Condividi il tuo primo post e ispira la community!</p></div>`; 
+        return; 
+      } 
+      
+      container.innerHTML = posts.map(post=>{ 
+        const html=renderMarkdown(post.content); 
+        const isAuthor = currentUser && (post.author.id === currentUser.id); 
+        const deleteBtn = isAuthor ? `<button class="action-btn text-danger" onclick="deletePost(${post.id})" title="Elimina post"><i class="fas fa-trash me-1"></i>Elimina</button>` : ''; 
+        const commentsCount = post.comments_count > 0 ? `(${post.comments_count})` : '';
+        
+        // Media content
+        let mediaHTML = '';
+        if (post.attachments && post.attachments.length > 0) {
+          post.attachments.forEach(attachment => {
+            if (attachment.type === 'image') {
+              mediaHTML += `<img src="${attachment.url}" alt="Post image" class="img-fluid">`;
+            }
+          });
+        }
+        
+        return `
+          <div class="post-card glass-card slide-up" id="post-${post.id}">
+            <div class="d-flex align-items-start">
+              <div class="user-avatar" style="background:${post.author.avatar_color}">${post.author.initials}</div>
+              <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div><h6 class="mb-0">${post.author.nome} ${post.author.cognome}</h6><small class="text-muted">@${post.author.username} • ${post.author.corso}</small></div>
+                  <small class="text-muted">${formatDate(post.created_at)}</small>
+                </div>
+                <div class="post-content">${html}${mediaHTML}</div>
+                <div class="post-actions">
+                  <button class="action-btn ${post.is_liked ? 'liked' : ''}" onclick="toggleLike(${post.id})"><i class="fas fa-heart me-1"></i><span id="likes-${post.id}">${post.likes_count}</span></button>
+                  <button class="action-btn comments-toggle" onclick="toggleComments(${post.id})"><i class="fas fa-comment me-1"></i>Commenti<span class="comments-counter">${commentsCount}</span></button>
+                  <button class="action-btn" onclick="sharePost(${post.id})"><i class="fas fa-share me-1"></i>Condividi</button>
+                  ${deleteBtn}
+                </div>
+                
+                <!-- SEZIONE COMMENTI -->
+                <div class="comments-section" id="comments-${post.id}" style="display:none;">
+                  <div id="comments-list-${post.id}">
+                    <!-- I commenti verranno caricati dinamicamente -->
+                  </div>
+                  
+                  <!-- FORM NUOVO COMMENTO -->
+                  ${currentUser ? `
+                    <div class="comment-form">
+                      <div class="d-flex gap-2">
+                        <div class="comment-avatar" style="background:${currentUser.avatar_color}">${currentUser.initials}</div>
+                        <div class="flex-grow-1">
+                          <textarea 
+                            class="comment-input w-100" 
+                            id="comment-input-${post.id}" 
+                            placeholder="Scrivi un commento..." 
+                            maxlength="1000"
+                            rows="2"></textarea>
+                          <div class="d-flex justify-content-between align-items-center mt-2">
+                            <small class="text-muted">Max 1000 caratteri</small>
+                            <button 
+                              class="comment-btn" 
+                              id="comment-btn-${post.id}"
+                              onclick="addComment(${post.id})">
+                              <i class="fas fa-paper-plane me-1"></i>Invia
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ` : `
+                    <div class="text-center p-3">
+                      <small class="text-muted">
+                        <i class="fas fa-lock me-1"></i>
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" class="text-decoration-none">Accedi</a> 
+                        per commentare
+                      </small>
+                    </div>
+                  `}
+                </div>
+              </div>
+            </div>
+          </div>`; 
+      }).join(''); 
+      
+      container.querySelectorAll('.post-card .post-content').forEach(el=>hljsApply(el)); 
+    }
+
+    async function createPost(){ const content=document.getElementById('post-content').value.trim(); if(!content){ showAlert('Scrivi qualcosa prima di pubblicare!','danger'); return; } if(content.length>4000){ showAlert('Il post è troppo lungo (max 4000 caratteri)','danger'); return; } try{ const response=await fetch('/api/posts',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content }) }); const data=await response.json(); if(response.ok){ document.getElementById('post-content').value=''; document.getElementById('char-count').textContent='0'; document.getElementById('post-preview').style.display='none'; showAlert('Post pubblicato!','success'); loadPosts(); } else { showAlert(data.error||'Errore durante la pubblicazione','danger'); } } catch(e){ showAlert('Errore di connessione','danger'); } }
+
+    async function toggleLike(postId){ try{ const res=await fetch(`/api/posts/${postId}/like`,{ method:'POST' }); const data=await res.json(); if(res.ok){ const likesSpan=document.getElementById(`likes-${postId}`); const likeBtn=likesSpan.parentElement; likesSpan.textContent=data.likes_count; if(data.is_liked) likeBtn.classList.add('liked'); else likeBtn.classList.remove('liked'); } else { showAlert(data.error||'Errore','danger'); } } catch(e){ showAlert('Errore di connessione','danger'); } }
+
+    async function deletePost(postId){
+      if(!confirm('⚠️ Sei sicuro di voler eliminare questo post?\n\nQuesta azione non può essere annullata.')){
+        return;
+      }
+      
+      try{
+        const res = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+        const data = await res.json();
+        
+        if(res.ok){
+          // Rimuovi il post dal DOM con animazione
+          const postElement = document.getElementById(`post-${postId}`);
+          if(postElement){
+            postElement.style.transition = 'all 0.3s ease';
+            postElement.style.transform = 'translateX(-100%)';
+            postElement.style.opacity = '0';
+            
+            setTimeout(() => {
+              postElement.remove();
+              // Aggiorna l'array posts
+              posts = posts.filter(p => p.id !== postId);
+              
+              // Se non ci sono più post, mostra il messaggio
+              if(posts.length === 0){
+                const container = document.getElementById('posts-container');
+                container.innerHTML = `<div class="glass-card p-4 text-center"><i class="fas fa-comments fa-3x mb-3" style="color:var(--text-muted)"></i><h5>Inizia la Conversazione!</h5><p class="text-muted">Condividi il tuo primo post e ispira la community!</p></div>`;
+              }
+            }, 300);
+          }
+          
+          showAlert('🗑️ Post eliminato con successo', 'success');
+        } else {
+          showAlert(data.error || 'Errore durante l\'eliminazione', 'danger');
+        }
+      } catch(e){
+        showAlert('Errore di connessione', 'danger');
+      }
+    }
+
+    function formatDate(dateString){ const date=new Date(dateString); const now=new Date(); const s=Math.floor((now-date)/1000); if(s<60) return 'Ora'; if(s<3600) return Math.floor(s/60)+'m'; if(s<86400) return Math.floor(s/3600)+'h'; if(s<604800) return Math.floor(s/86400)+'g'; return date.toLocaleDateString('it-IT'); }
+
+    function showAlert(message,type){ document.querySelectorAll('.alert').forEach(a=>a.remove()); const alertDiv=document.createElement('div'); alertDiv.className=`alert alert-${type} alert-dismissible fade show`; alertDiv.innerHTML=`<strong>${type==='success'?'✅':'❌'}</strong> ${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`; document.body.appendChild(alertDiv); setTimeout(()=>{ if(alertDiv&&alertDiv.parentNode) alertDiv.remove(); },5000); }
+    
+    function closeModal(id){ const modal=bootstrap.Modal.getInstance(document.getElementById(id)); if(modal) modal.hide(); }
+
+    window.addEventListener('scroll', function(){ document.querySelectorAll('.glass-card').forEach(el=>{ const top=el.getBoundingClientRect().top; if(top < window.innerHeight - 150) el.classList.add('fade-in'); }); });
+  </script>
 </body>
 </html>
