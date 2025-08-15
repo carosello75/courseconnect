@@ -493,7 +493,7 @@
       .post-content video{max-width:100%!important; width:100%;}
       .comment-meta{flex-wrap:wrap;gap:0.25rem}
       
-      /* 🎯 FIX MOBILE: CENTRA LE CARD */
+      /* 🎯 FIX MOBILE: CARD A TUTTA LARGHEZZA */
       .row {
         justify-content: center !important;
       }
@@ -501,47 +501,50 @@
         display: flex !important;
         justify-content: center !important;
         margin-bottom: 2rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
       }
       .glass-card, .testimonial-card {
-        max-width: 350px !important;
         width: 100% !important;
+        max-width: 100% !important;
         margin: 0 auto !important;
       }
       
-      /* Features Cards - Centra perfettamente */
+      /* Features Cards - Larghezza completa */
       #guest-section .row.mt-5 {
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
       }
       #guest-section .col-md-4 {
-        max-width: 350px !important;
-        width: 90% !important;
-        margin: 0 auto 1.5rem auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 0 1.5rem 0 !important;
       }
       
-      /* Testimonials - Centra perfettamente */
+      /* Testimonials - Larghezza completa */
       #testimonials-container .row {
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
       }
       #testimonials-container .col-lg-4 {
-        max-width: 350px !important;
-        width: 90% !important;
-        margin: 0 auto 1.5rem auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 0 1.5rem 0 !important;
       }
     }
     
-    /* 📱 MOBILE SMALL - Per schermi molto piccoli */
+    /* 📱 MOBILE SMALL - Card a tutta larghezza anche sui piccoli */
     @media (max-width:576px){
       .glass-card, .testimonial-card {
-        max-width: 95% !important;
+        width: 100% !important;
+        max-width: 100% !important;
         margin: 0 auto 1.5rem auto !important;
       }
       .col-md-4, .col-lg-4 {
-        width: 95% !important;
-        max-width: 95% !important;
+        width: 100% !important;
+        max-width: 100% !important;
       }
       .hero-title{font-size:2rem}
       .hero-subtitle{font-size:0.9rem}
