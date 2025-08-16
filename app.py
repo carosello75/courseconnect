@@ -86,6 +86,11 @@ class User(db.Model):
     comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     likes = db.relationship('Like', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     reviews = db.relationship('Review', backref='author', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Course relationships
+    taught_courses = db.relationship('Course', backref='instructor', lazy='dynamic')
+    enrollments = db.relationship('Enrollment', backref='student', lazy='dynamic', cascade='all, delete-orphan')
+    lesson_progress = db.relationship('LessonProgress', backref='user', lazy='dynamic', cascade='all, delete-orphan')
 
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
@@ -101,6 +106,22 @@ class User(db.Model):
         return f"{self.nome[0]}{self.cognome[0]}".upper() if self.nome and self.cognome else self.username[0].upper()
 
     def to_dict(self):
+        # Calcola statistiche corsi
+        enrolled_courses = self.enrollments.count()
+        taught_courses = self.taught_courses.count()
+        
+        # Calcola progresso medio dei corsi iscritti
+        total_progress = 0
+        active_enrollments = self.enrollments.filter_by(is_active=True).all()
+        
+        if active_enrollments:
+            for enrollment in active_enrollments:
+                course_progress = enrollment.course.get_user_progress(self.id)
+                total_progress += course_progress
+            avg_progress = total_progress / len(active_enrollments)
+        else:
+            avg_progress = 0
+        
         return {
             'id': self.id,
             'username': self.username,
@@ -111,6 +132,10 @@ class User(db.Model):
             'avatar_url': self.avatar_url,
             'avatar_color': self.get_avatar_color(),
             'initials': self.get_initials(),
+            'is_admin': self.is_admin,
+            'enrolled_courses': enrolled_courses,
+            'taught_courses': taught_courses,
+            'avg_progress': round(avg_progress, 1),
             'created_at': (self.created_at or datetime.utcnow()).isoformat()
         }
 
@@ -205,9 +230,143 @@ class Review(db.Model):
 
 
 # ========================================
-# ACCOUNT DELETION MODEL
+# MODELLI CORSI E SISTEMA APPRENDIMENTO
 # ========================================
 
+class Course(db.Model):
+    """Modello per i corsi"""
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    category = db.Column(db.String(100), nullable=False)  # Web Design, SEO, WordPress, etc.
+    course_type = db.Column(db.String(50), default='CORSI')  # CORSI, TRAINING
+    thumbnail_url = db.Column(db.String(500))
+    is_private = db.Column(db.Boolean, default=False)
+    price = db.Column(db.Float, default=0.0)
+    duration_hours = db.Column(db.Integer, default=0)
+    skill_level = db.Column(db.String(50), default='Beginner')  # Beginner, Intermediate, Advanced
+    instructor_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    lessons = db.relationship('Lesson', backref='course', lazy='dynamic', cascade='all, delete-orphan')
+    enrollments = db.relationship('Enrollment', backref='course', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def get_total_lessons(self):
+        return self.lessons.count()
+    
+    def get_user_progress(self, user_id):
+        if not user_id:
+            return 0
+        enrollment = Enrollment.query.filter_by(user_id=user_id, course_id=self.id).first()
+        if not enrollment:
+            return 0
+        
+        total_lessons = self.get_total_lessons()
+        if total_lessons == 0:
+            return 0
+            
+        completed_lessons = LessonProgress.query.join(Lesson).filter(
+            Lesson.course_id == self.id,
+            LessonProgress.user_id == user_id,
+            LessonProgress.is_completed == True
+        ).count()
+        
+        return round((completed_lessons / total_lessons) * 100)
+    
+    def to_dict(self, current_user=None):
+        user_progress = 0
+        is_enrolled = False
+        
+        if current_user:
+            user_progress = self.get_user_progress(current_user.id)
+            is_enrolled = Enrollment.query.filter_by(
+                user_id=current_user.id, 
+                course_id=self.id
+            ).first() is not None
+        
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'category': self.category,
+            'course_type': self.course_type,
+            'thumbnail_url': self.thumbnail_url,
+            'is_private': self.is_private,
+            'price': self.price,
+            'duration_hours': self.duration_hours,
+            'skill_level': self.skill_level,
+            'total_lessons': self.get_total_lessons(),
+            'user_progress': user_progress,
+            'is_enrolled': is_enrolled,
+            'instructor': self.instructor.to_dict() if self.instructor else None,
+            'created_at': (self.created_at or datetime.utcnow()).isoformat()
+        }
+
+
+class Lesson(db.Model):
+    """Lezioni di un corso"""
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    content = db.Column(db.Text)  # Contenuto markdown
+    video_url = db.Column(db.String(500))
+    order_index = db.Column(db.Integer, default=0)
+    duration_minutes = db.Column(db.Integer, default=0)
+    is_free = db.Column(db.Boolean, default=False)  # Lezione gratuita
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships  
+    progress = db.relationship('LessonProgress', backref='lesson', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def to_dict(self, current_user=None):
+        user_completed = False
+        if current_user:
+            progress = LessonProgress.query.filter_by(
+                user_id=current_user.id,
+                lesson_id=self.id
+            ).first()
+            user_completed = progress.is_completed if progress else False
+        
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'content': self.content,
+            'video_url': self.video_url,
+            'order_index': self.order_index,
+            'duration_minutes': self.duration_minutes,
+            'is_free': self.is_free,
+            'course_id': self.course_id,
+            'user_completed': user_completed,
+            'created_at': (self.created_at or datetime.utcnow()).isoformat()
+        }
+
+
+class Enrollment(db.Model):
+    """Iscrizioni degli utenti ai corsi"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'course_id', name='unique_user_course_enrollment'),)
+
+
+class LessonProgress(db.Model):
+    """Progresso delle lezioni"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    lesson_id = db.Column(db.Integer, db.ForeignKey('lesson.id'), nullable=False)
+    is_completed = db.Column(db.Boolean, default=False)
+    completed_at = db.Column(db.DateTime)
+    watch_time_seconds = db.Column(db.Integer, default=0)
+    last_position_seconds = db.Column(db.Integer, default=0)
+    
 class DeletedAccount(db.Model):
     """Modello per tracciare account eliminati e feedback"""
     id = db.Column(db.Integer, primary_key=True)
@@ -216,6 +375,268 @@ class DeletedAccount(db.Model):
     deletion_reason = db.Column(db.String(500))
     feedback = db.Column(db.Text)
     deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ========================================
+# API ROUTES CORSI
+# ========================================
+
+@app.route('/api/courses', methods=['GET'])
+def get_courses():
+    """Ottieni tutti i corsi"""
+    try:
+        category = request.args.get('category', '')
+        course_type = request.args.get('type', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 12, type=int)
+        
+        query = Course.query.filter_by(is_active=True)
+        
+        # Filtri
+        if category:
+            query = query.filter(Course.category.ilike(f'%{category}%'))
+        if course_type:
+            query = query.filter_by(course_type=course_type)
+        
+        # Per utenti non loggati, mostra solo corsi pubblici
+        current_user = get_current_user()
+        if not current_user:
+            query = query.filter_by(is_private=False)
+        
+        courses = query.order_by(Course.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        return jsonify({
+            'courses': [course.to_dict(current_user) for course in courses.items],
+            'total': courses.total,
+            'page': page,
+            'has_next': courses.has_next,
+            'has_prev': courses.has_prev
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento corsi: {str(e)}'}), 500
+
+
+@app.route('/api/courses', methods=['POST'])
+def create_course():
+    """Crea nuovo corso (solo admin/instructor)"""
+    try:
+        user = get_current_user()
+        if not user or not user.is_admin:
+            return jsonify({'error': 'Solo gli amministratori possono creare corsi'}), 403
+        
+        data = _payload()
+        required = ['title', 'category', 'description']
+        missing = [k for k in required if not data.get(k)]
+        if missing:
+            return jsonify({'error': 'Campi obbligatori mancanti', 'missing': missing}), 400
+        
+        course = Course(
+            title=data['title'],
+            description=data['description'],
+            category=data['category'],
+            course_type=data.get('course_type', 'CORSI'),
+            thumbnail_url=data.get('thumbnail_url', ''),
+            is_private=data.get('is_private', False),
+            price=float(data.get('price', 0)),
+            duration_hours=int(data.get('duration_hours', 0)),
+            skill_level=data.get('skill_level', 'Beginner'),
+            instructor_id=user.id
+        )
+        
+        db.session.add(course)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Corso creato con successo',
+            'course': course.to_dict(user)
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore creazione corso: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>/enroll', methods=['POST'])
+def enroll_course(course_id):
+    """Iscriviti a un corso"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        course = db.session.get(Course, course_id)
+        if not course:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Controlla se già iscritto
+        existing = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
+        if existing:
+            return jsonify({'error': 'Già iscritto a questo corso'}), 400
+        
+        # Crea iscrizione
+        enrollment = Enrollment(user_id=user.id, course_id=course_id)
+        db.session.add(enrollment)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Iscrizione completata con successo!',
+            'course': course.to_dict(user)
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore iscrizione: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>/lessons', methods=['GET'])
+def get_course_lessons(course_id):
+    """Ottieni le lezioni di un corso"""
+    try:
+        user = get_current_user()
+        
+        course = db.session.get(Course, course_id)
+        if not course:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Controlla se l'utente può accedere al corso
+        can_access = False
+        if user:
+            # Se è iscritto o è l'instructore o è admin
+            enrollment = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
+            can_access = enrollment or course.instructor_id == user.id or user.is_admin
+        
+        # Se non può accedere, mostra solo lezioni gratuite
+        query = Lesson.query.filter_by(course_id=course_id).order_by(Lesson.order_index)
+        if not can_access:
+            query = query.filter_by(is_free=True)
+        
+        lessons = query.all()
+        
+        return jsonify({
+            'lessons': [lesson.to_dict(user) for lesson in lessons],
+            'course': course.to_dict(user),
+            'can_access_full_course': can_access
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento lezioni: {str(e)}'}), 500
+
+
+@app.route('/api/lessons/<int:lesson_id>/complete', methods=['POST'])
+def complete_lesson(lesson_id):
+    """Segna lezione come completata"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        lesson = db.session.get(Lesson, lesson_id)
+        if not lesson:
+            return jsonify({'error': 'Lezione non trovata'}), 404
+        
+        # Controlla se l'utente è iscritto al corso
+        enrollment = Enrollment.query.filter_by(
+            user_id=user.id, 
+            course_id=lesson.course_id
+        ).first()
+        if not enrollment:
+            return jsonify({'error': 'Non sei iscritto a questo corso'}), 403
+        
+        # Trova o crea progress
+        progress = LessonProgress.query.filter_by(
+            user_id=user.id,
+            lesson_id=lesson_id
+        ).first()
+        
+        if not progress:
+            progress = LessonProgress(user_id=user.id, lesson_id=lesson_id)
+        
+        progress.is_completed = True
+        progress.completed_at = datetime.utcnow()
+        
+        db.session.add(progress)
+        db.session.commit()
+        
+        # Calcola nuovo progresso del corso
+        course_progress = lesson.course.get_user_progress(user.id)
+        
+        return jsonify({
+            'message': 'Lezione completata!',
+            'lesson_completed': True,
+            'course_progress': course_progress
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore completamento lezione: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>', methods=['DELETE'])
+def delete_course(course_id):
+    """Elimina corso (solo admin/instructor)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        course = db.session.get(Course, course_id)
+        if not course:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Solo admin o instructore del corso possono eliminare
+        if not user.is_admin and course.instructor_id != user.id:
+            return jsonify({'error': 'Non hai i permessi per eliminare questo corso'}), 403
+        
+        # Elimina il corso (cascade eliminerà lezioni, iscrizioni, progressi)
+        db.session.delete(course)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Corso eliminato con successo',
+            'deleted_course_id': course_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Errore eliminazione corso: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>/progress', methods=['GET'])
+def get_course_progress(course_id):
+    """Ottieni progresso corso dell'utente"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        course = db.session.get(Course, course_id)
+        if not course:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Ottieni progresso dettagliato
+        total_lessons = course.get_total_lessons()
+        completed_lessons = LessonProgress.query.join(Lesson).filter(
+            Lesson.course_id == course_id,
+            LessonProgress.user_id == user.id,
+            LessonProgress.is_completed == True
+        ).count()
+        
+        progress_percentage = round((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0
+        
+        # Lezioni completate
+        completed_lesson_ids = [
+            p.lesson_id for p in LessonProgress.query.filter_by(
+                user_id=user.id, is_completed=True
+            ).all()
+        ]
+        
+        return jsonify({
+            'course_id': course_id,
+            'progress_percentage': progress_percentage,
+            'completed_lessons': completed_lessons,
+            'total_lessons': total_lessons,
+            'completed_lesson_ids': completed_lesson_ids,
+            'course': course.to_dict(user)
+        })
+    except Exception as e:
+        return jsonify({'error': f'Errore caricamento progresso: {str(e)}'}), 500
 
 
 # ========================================
@@ -231,8 +652,8 @@ def get_current_user():
 
 
 def _seed_data():
-    """Popola solo dati essenziali (NO utenti demo - solo admin)."""
-    # Crea solo admin se non esiste (per gestione piattaforma)
+    """Popola dati essenziali + corsi demo"""
+    # Crea admin se non esiste
     admin = User.query.filter_by(username='admin').first()
     if not admin:
         admin = User(
@@ -248,7 +669,7 @@ def _seed_data():
         db.session.add(admin)
         db.session.commit()
         
-        # Post di benvenuto dell'admin (solo se non ci sono altri post)
+        # Post di benvenuto dell'admin
         if Post.query.count() == 0:
             welcome_post = Post(
                 content='''🎉 **Benvenuti in CourseConnect!**
@@ -263,14 +684,9 @@ Il social network dedicato ai corsisti è finalmente online! 🚀
 - ❤️ **Mettere like** e commentare
 - 🔗 **Creare collegamenti** con la community
 - ⭐ **Lasciare recensioni** per aiutare altri corsisti
+- 📚 **Accedere ai corsi** e tracciare i tuoi progressi
 
 **Inizia subito a condividere la tua esperienza di apprendimento!**
-
-Raccontaci:
-- Su cosa stai lavorando
-- Quali sfide stai affrontando  
-- I tuoi successi e traguardi
-- Consigli per altri corsisti
 
 *Insieme possiamo crescere più velocemente!* 📚✨
 
@@ -281,6 +697,93 @@ Raccontaci:
             db.session.add(welcome_post)
             db.session.commit()
             print("✅ Post di benvenuto creato!")
+    
+    # Crea corsi demo se non esistono
+    if Course.query.count() == 0:
+        demo_courses = [
+            {
+                'title': 'Fondamenti di Web Design Moderno',
+                'description': 'Impara le basi del web design moderno con HTML5, CSS3 e JavaScript. Dalla teoria alla pratica con progetti reali e responsive design.',
+                'category': 'Web Design',
+                'course_type': 'CORSI',
+                'thumbnail_url': 'https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=400',
+                'duration_hours': 40,
+                'skill_level': 'Beginner',
+                'instructor_id': admin.id
+            },
+            {
+                'title': 'SEO e Posizionamento Avanzato',
+                'description': 'Strategie professionali per posizionare il tuo sito web ai primi posti sui motori di ricerca. SEO tecnica, content marketing e link building.',
+                'category': 'SEO e Marketing',
+                'course_type': 'CORSI', 
+                'thumbnail_url': 'https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?w=400',
+                'duration_hours': 25,
+                'skill_level': 'Intermediate',
+                'instructor_id': admin.id
+            },
+            {
+                'title': 'Sviluppo CMS e E-commerce',
+                'description': 'Creazione completa di siti web dinamici e negozi online. Content Management Systems, database e sistemi di pagamento.',
+                'category': 'Sviluppo Web',
+                'course_type': 'CORSI',
+                'thumbnail_url': 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400',
+                'duration_hours': 35,
+                'skill_level': 'Intermediate',
+                'instructor_id': admin.id
+            },
+            {
+                'title': 'Business Digital e Acquisizione Clienti',
+                'description': 'Strategie avanzate di marketing digitale per freelancer e agenzie. Sales funnel, automation e conversion optimization.',
+                'category': 'Business e Marketing',
+                'course_type': 'TRAINING',
+                'thumbnail_url': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400',
+                'duration_hours': 20,
+                'skill_level': 'Advanced',
+                'instructor_id': admin.id,
+                'is_private': True
+            }
+        ]
+        
+        for course_data in demo_courses:
+            course = Course(**course_data)
+            db.session.add(course)
+        
+        db.session.commit()
+        print("✅ Corsi demo creati!")
+        
+        # Aggiungi alcune lezioni demo
+        courses = Course.query.all()
+        for course in courses:
+            for i in range(5):
+                lesson = Lesson(
+                    title=f'Lezione {i+1}: Introduzione a {course.category}',
+                    description=f'In questa lezione imparerai i fondamenti di {course.category}',
+                    content=f'''# Lezione {i+1}: {course.title}
+
+## Obiettivi della lezione
+- Comprendere i concetti base
+- Applicare le tecniche apprese
+- Completare gli esercizi pratici
+
+## Contenuto
+Questa è una lezione demo per il corso **{course.title}**.
+
+### Argomenti trattati:
+1. Introduzione teorica
+2. Esempi pratici
+3. Esercizi guidati
+4. Verifica finale
+
+*Durata stimata: 30 minuti*''',
+                    order_index=i,
+                    duration_minutes=30,
+                    is_free=(i == 0),  # Prima lezione gratuita
+                    course_id=course.id
+                )
+                db.session.add(lesson)
+        
+        db.session.commit()
+        print("✅ Lezioni demo create!")
 
 
 def create_tables():
@@ -355,6 +858,8 @@ def health_check():
             'posts_count': Post.query.count(),
             'comments_count': Comment.query.count(),
             'reviews_count': Review.query.count(),
+            'courses_count': Course.query.count(),
+            'enrollments_count': Enrollment.query.count(),
             'upload_folder': UPLOAD_FOLDER,
             'video_folder': VIDEO_FOLDER,
             'timestamp': datetime.utcnow().isoformat()
