@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti  
-# app.py - Backend Flask con Sistema Completo + Video Fix
+# app.py - Backend Flask con Sistema Completo + Video Fix + ENDPOINT CORSI FISSI
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
@@ -338,9 +338,11 @@ class Lesson(db.Model):
             'video_url': self.video_url,
             'order_index': self.order_index,
             'duration_minutes': self.duration_minutes,
+            'duration': self.duration_minutes,  # Alias per compatibilità frontend
             'is_free': self.is_free,
             'course_id': self.course_id,
             'user_completed': user_completed,
+            'is_completed': user_completed,  # Alias per compatibilità frontend
             'created_at': (self.created_at or datetime.utcnow()).isoformat()
         }
 
@@ -367,6 +369,9 @@ class LessonProgress(db.Model):
     watch_time_seconds = db.Column(db.Integer, default=0)
     last_position_seconds = db.Column(db.Integer, default=0)
     
+    __table_args__ = (db.UniqueConstraint('user_id', 'lesson_id', name='unique_user_lesson_progress'),)
+    
+
 class DeletedAccount(db.Model):
     """Modello per tracciare account eliminati e feedback"""
     id = db.Column(db.Integer, primary_key=True)
@@ -375,268 +380,6 @@ class DeletedAccount(db.Model):
     deletion_reason = db.Column(db.String(500))
     feedback = db.Column(db.Text)
     deleted_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-# ========================================
-# API ROUTES CORSI
-# ========================================
-
-@app.route('/api/courses', methods=['GET'])
-def get_courses():
-    """Ottieni tutti i corsi"""
-    try:
-        category = request.args.get('category', '')
-        course_type = request.args.get('type', '')
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 12, type=int)
-        
-        query = Course.query.filter_by(is_active=True)
-        
-        # Filtri
-        if category:
-            query = query.filter(Course.category.ilike(f'%{category}%'))
-        if course_type:
-            query = query.filter_by(course_type=course_type)
-        
-        # Per utenti non loggati, mostra solo corsi pubblici
-        current_user = get_current_user()
-        if not current_user:
-            query = query.filter_by(is_private=False)
-        
-        courses = query.order_by(Course.created_at.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
-        
-        return jsonify({
-            'courses': [course.to_dict(current_user) for course in courses.items],
-            'total': courses.total,
-            'page': page,
-            'has_next': courses.has_next,
-            'has_prev': courses.has_prev
-        })
-    except Exception as e:
-        return jsonify({'error': f'Errore caricamento corsi: {str(e)}'}), 500
-
-
-@app.route('/api/courses', methods=['POST'])
-def create_course():
-    """Crea nuovo corso (solo admin/instructor)"""
-    try:
-        user = get_current_user()
-        if not user or not user.is_admin:
-            return jsonify({'error': 'Solo gli amministratori possono creare corsi'}), 403
-        
-        data = _payload()
-        required = ['title', 'category', 'description']
-        missing = [k for k in required if not data.get(k)]
-        if missing:
-            return jsonify({'error': 'Campi obbligatori mancanti', 'missing': missing}), 400
-        
-        course = Course(
-            title=data['title'],
-            description=data['description'],
-            category=data['category'],
-            course_type=data.get('course_type', 'CORSI'),
-            thumbnail_url=data.get('thumbnail_url', ''),
-            is_private=data.get('is_private', False),
-            price=float(data.get('price', 0)),
-            duration_hours=int(data.get('duration_hours', 0)),
-            skill_level=data.get('skill_level', 'Beginner'),
-            instructor_id=user.id
-        )
-        
-        db.session.add(course)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Corso creato con successo',
-            'course': course.to_dict(user)
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore creazione corso: {str(e)}'}), 500
-
-
-@app.route('/api/courses/<int:course_id>/enroll', methods=['POST'])
-def enroll_course(course_id):
-    """Iscriviti a un corso"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-        
-        course = db.session.get(Course, course_id)
-        if not course:
-            return jsonify({'error': 'Corso non trovato'}), 404
-        
-        # Controlla se già iscritto
-        existing = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
-        if existing:
-            return jsonify({'error': 'Già iscritto a questo corso'}), 400
-        
-        # Crea iscrizione
-        enrollment = Enrollment(user_id=user.id, course_id=course_id)
-        db.session.add(enrollment)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Iscrizione completata con successo!',
-            'course': course.to_dict(user)
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore iscrizione: {str(e)}'}), 500
-
-
-@app.route('/api/courses/<int:course_id>/lessons', methods=['GET'])
-def get_course_lessons(course_id):
-    """Ottieni le lezioni di un corso"""
-    try:
-        user = get_current_user()
-        
-        course = db.session.get(Course, course_id)
-        if not course:
-            return jsonify({'error': 'Corso non trovato'}), 404
-        
-        # Controlla se l'utente può accedere al corso
-        can_access = False
-        if user:
-            # Se è iscritto o è l'instructore o è admin
-            enrollment = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
-            can_access = enrollment or course.instructor_id == user.id or user.is_admin
-        
-        # Se non può accedere, mostra solo lezioni gratuite
-        query = Lesson.query.filter_by(course_id=course_id).order_by(Lesson.order_index)
-        if not can_access:
-            query = query.filter_by(is_free=True)
-        
-        lessons = query.all()
-        
-        return jsonify({
-            'lessons': [lesson.to_dict(user) for lesson in lessons],
-            'course': course.to_dict(user),
-            'can_access_full_course': can_access
-        })
-    except Exception as e:
-        return jsonify({'error': f'Errore caricamento lezioni: {str(e)}'}), 500
-
-
-@app.route('/api/lessons/<int:lesson_id>/complete', methods=['POST'])
-def complete_lesson(lesson_id):
-    """Segna lezione come completata"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-        
-        lesson = db.session.get(Lesson, lesson_id)
-        if not lesson:
-            return jsonify({'error': 'Lezione non trovata'}), 404
-        
-        # Controlla se l'utente è iscritto al corso
-        enrollment = Enrollment.query.filter_by(
-            user_id=user.id, 
-            course_id=lesson.course_id
-        ).first()
-        if not enrollment:
-            return jsonify({'error': 'Non sei iscritto a questo corso'}), 403
-        
-        # Trova o crea progress
-        progress = LessonProgress.query.filter_by(
-            user_id=user.id,
-            lesson_id=lesson_id
-        ).first()
-        
-        if not progress:
-            progress = LessonProgress(user_id=user.id, lesson_id=lesson_id)
-        
-        progress.is_completed = True
-        progress.completed_at = datetime.utcnow()
-        
-        db.session.add(progress)
-        db.session.commit()
-        
-        # Calcola nuovo progresso del corso
-        course_progress = lesson.course.get_user_progress(user.id)
-        
-        return jsonify({
-            'message': 'Lezione completata!',
-            'lesson_completed': True,
-            'course_progress': course_progress
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore completamento lezione: {str(e)}'}), 500
-
-
-@app.route('/api/courses/<int:course_id>', methods=['DELETE'])
-def delete_course(course_id):
-    """Elimina corso (solo admin/instructor)"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-        
-        course = db.session.get(Course, course_id)
-        if not course:
-            return jsonify({'error': 'Corso non trovato'}), 404
-        
-        # Solo admin o instructore del corso possono eliminare
-        if not user.is_admin and course.instructor_id != user.id:
-            return jsonify({'error': 'Non hai i permessi per eliminare questo corso'}), 403
-        
-        # Elimina il corso (cascade eliminerà lezioni, iscrizioni, progressi)
-        db.session.delete(course)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Corso eliminato con successo',
-            'deleted_course_id': course_id
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Errore eliminazione corso: {str(e)}'}), 500
-
-
-@app.route('/api/courses/<int:course_id>/progress', methods=['GET'])
-def get_course_progress(course_id):
-    """Ottieni progresso corso dell'utente"""
-    try:
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'Login richiesto'}), 401
-        
-        course = db.session.get(Course, course_id)
-        if not course:
-            return jsonify({'error': 'Corso non trovato'}), 404
-        
-        # Ottieni progresso dettagliato
-        total_lessons = course.get_total_lessons()
-        completed_lessons = LessonProgress.query.join(Lesson).filter(
-            Lesson.course_id == course_id,
-            LessonProgress.user_id == user.id,
-            LessonProgress.is_completed == True
-        ).count()
-        
-        progress_percentage = round((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0
-        
-        # Lezioni completate
-        completed_lesson_ids = [
-            p.lesson_id for p in LessonProgress.query.filter_by(
-                user_id=user.id, is_completed=True
-            ).all()
-        ]
-        
-        return jsonify({
-            'course_id': course_id,
-            'progress_percentage': progress_percentage,
-            'completed_lessons': completed_lessons,
-            'total_lessons': total_lessons,
-            'completed_lesson_ids': completed_lesson_ids,
-            'course': course.to_dict(user)
-        })
-    except Exception as e:
-        return jsonify({'error': f'Errore caricamento progresso: {str(e)}'}), 500
 
 
 # ========================================
@@ -1416,6 +1159,361 @@ def delete_account():
 
 
 # ========================================
+# API ROUTES CORSI
+# ========================================
+
+@app.route('/api/courses', methods=['GET'])
+def get_courses():
+    """Ottieni tutti i corsi"""
+    try:
+        category = request.args.get('category', '')
+        course_type = request.args.get('type', '')
+        skill_level = request.args.get('skill_level', '')
+        free_only = request.args.get('free_only', '').lower() == 'true'
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 12, type=int)
+        
+        query = Course.query.filter_by(is_active=True)
+        
+        # Filtri
+        if category:
+            query = query.filter(Course.category.ilike(f'%{category}%'))
+        if course_type:
+            query = query.filter_by(course_type=course_type)
+        if skill_level:
+            query = query.filter_by(skill_level=skill_level)
+        if free_only:
+            query = query.filter_by(price=0.0)
+        
+        # Per utenti non loggati, mostra solo corsi pubblici
+        current_user = get_current_user()
+        if not current_user:
+            query = query.filter_by(is_private=False)
+        
+        courses = query.order_by(Course.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        courses_data = []
+        for course in courses.items:
+            course_dict = course.to_dict(current_user)
+            # Aggiungi conteggio iscritti
+            course_dict['enrolled_count'] = Enrollment.query.filter_by(course_id=course.id, is_active=True).count()
+            course_dict['lessons_count'] = course.get_total_lessons()
+            courses_data.append(course_dict)
+        
+        return jsonify({
+            'courses': courses_data,
+            'total': courses.total,
+            'page': page,
+            'has_next': courses.has_next,
+            'has_prev': courses.has_prev
+        })
+    except Exception as e:
+        print(f"Errore get_courses: {e}")
+        return jsonify({'error': f'Errore caricamento corsi: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>', methods=['GET'])
+def get_course(course_id):
+    """🔧 FIX: Ottieni dettagli di un singolo corso"""
+    try:
+        user = get_current_user()
+        
+        course = db.session.get(Course, course_id)
+        if not course or not course.is_active:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Per utenti non loggati, mostra solo corsi pubblici
+        if not user and course.is_private:
+            return jsonify({'error': 'Corso privato - accesso negato'}), 403
+        
+        # Conta iscrizioni
+        enrolled_count = Enrollment.query.filter_by(course_id=course_id, is_active=True).count()
+        
+        course_data = course.to_dict(user)
+        course_data['enrolled_count'] = enrolled_count
+        course_data['lessons_count'] = course.get_total_lessons()
+        
+        return jsonify({
+            'course': course_data,
+            'message': 'Corso caricato con successo'
+        })
+    except Exception as e:
+        print(f"Errore get_course: {e}")
+        return jsonify({'error': f'Errore caricamento corso: {str(e)}'}), 500
+
+
+@app.route('/api/courses', methods=['POST'])
+def create_course():
+    """Crea nuovo corso (solo admin/instructor)"""
+    try:
+        user = get_current_user()
+        if not user or not user.is_admin:
+            return jsonify({'error': 'Solo gli amministratori possono creare corsi'}), 403
+        
+        data = _payload()
+        required = ['title', 'category', 'description']
+        missing = [k for k in required if not data.get(k)]
+        if missing:
+            return jsonify({'error': 'Campi obbligatori mancanti', 'missing': missing}), 400
+        
+        course = Course(
+            title=data['title'],
+            description=data['description'],
+            category=data['category'],
+            course_type=data.get('course_type', 'CORSI'),
+            thumbnail_url=data.get('thumbnail_url', ''),
+            is_private=data.get('is_private', False),
+            price=float(data.get('price', 0)),
+            duration_hours=int(data.get('duration_hours', 0)),
+            skill_level=data.get('skill_level', 'Beginner'),
+            instructor_id=user.id
+        )
+        
+        db.session.add(course)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Corso creato con successo',
+            'course': course.to_dict(user)
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Errore create_course: {e}")
+        return jsonify({'error': f'Errore creazione corso: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>/enroll', methods=['POST'])
+def enroll_course(course_id):
+    """Iscriviti a un corso"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        course = db.session.get(Course, course_id)
+        if not course:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Controlla se già iscritto
+        existing = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
+        if existing:
+            return jsonify({'error': 'Già iscritto a questo corso'}), 400
+        
+        # Crea iscrizione
+        enrollment = Enrollment(user_id=user.id, course_id=course_id)
+        db.session.add(enrollment)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Iscrizione completata con successo!',
+            'course': course.to_dict(user)
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Errore enroll_course: {e}")
+        return jsonify({'error': f'Errore iscrizione: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>/lessons', methods=['GET'])
+def get_course_lessons(course_id):
+    """Ottieni le lezioni di un corso - VERSIONE MIGLIORATA"""
+    try:
+        user = get_current_user()
+        
+        course = db.session.get(Course, course_id)
+        if not course or not course.is_active:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Controlla se l'utente può accedere al corso
+        can_access = False
+        enrollment = None
+        if user:
+            enrollment = Enrollment.query.filter_by(user_id=user.id, course_id=course_id).first()
+            can_access = (enrollment and enrollment.is_active) or course.instructor_id == user.id or user.is_admin
+        
+        # Query delle lezioni
+        query = Lesson.query.filter_by(course_id=course_id).order_by(Lesson.order_index)
+        
+        # Se non può accedere, mostra solo lezioni gratuite
+        if not can_access:
+            query = query.filter_by(is_free=True)
+        
+        lessons = query.all()
+        
+        return jsonify({
+            'lessons': [lesson.to_dict(user) for lesson in lessons],
+            'course': course.to_dict(user),
+            'can_access_full_course': can_access,
+            'total_lessons': len(lessons),
+            'message': 'Lezioni caricate con successo'
+        })
+    except Exception as e:
+        print(f"Errore get_course_lessons: {e}")
+        return jsonify({'error': f'Errore caricamento lezioni: {str(e)}'}), 500
+
+
+@app.route('/api/lessons/<int:lesson_id>', methods=['GET'])
+def get_lesson(lesson_id):
+    """🔧 FIX: Ottieni dettagli di una singola lezione"""
+    try:
+        user = get_current_user()
+        
+        lesson = db.session.get(Lesson, lesson_id)
+        if not lesson:
+            return jsonify({'error': 'Lezione non trovata'}), 404
+        
+        course = lesson.course
+        if not course or not course.is_active:
+            return jsonify({'error': 'Corso associato non trovato'}), 404
+        
+        # Controlla se l'utente può accedere alla lezione
+        can_access = False
+        if user:
+            # Se è iscritto al corso o è l'instructore o è admin
+            enrollment = Enrollment.query.filter_by(user_id=user.id, course_id=course.id).first()
+            can_access = (enrollment and enrollment.is_active) or course.instructor_id == user.id or user.is_admin
+        
+        # Se non può accedere e la lezione non è gratuita
+        if not can_access and not lesson.is_free:
+            return jsonify({'error': 'Accesso negato - iscriviti al corso per accedere a questa lezione'}), 403
+        
+        lesson_data = lesson.to_dict(user)
+        
+        return jsonify({
+            'lesson': lesson_data,
+            'course': course.to_dict(user),
+            'can_access': can_access,
+            'message': 'Lezione caricata con successo'
+        })
+    except Exception as e:
+        print(f"Errore get_lesson: {e}")
+        return jsonify({'error': f'Errore caricamento lezione: {str(e)}'}), 500
+
+
+@app.route('/api/lessons/<int:lesson_id>/complete', methods=['POST'])
+def complete_lesson(lesson_id):
+    """Segna lezione come completata"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        lesson = db.session.get(Lesson, lesson_id)
+        if not lesson:
+            return jsonify({'error': 'Lezione non trovata'}), 404
+        
+        # Controlla se l'utente è iscritto al corso
+        enrollment = Enrollment.query.filter_by(
+            user_id=user.id, 
+            course_id=lesson.course_id
+        ).first()
+        if not enrollment:
+            return jsonify({'error': 'Non sei iscritto a questo corso'}), 403
+        
+        # Trova o crea progress
+        progress = LessonProgress.query.filter_by(
+            user_id=user.id,
+            lesson_id=lesson_id
+        ).first()
+        
+        if not progress:
+            progress = LessonProgress(user_id=user.id, lesson_id=lesson_id)
+        
+        progress.is_completed = True
+        progress.completed_at = datetime.utcnow()
+        
+        db.session.add(progress)
+        db.session.commit()
+        
+        # Calcola nuovo progresso del corso
+        course_progress = lesson.course.get_user_progress(user.id)
+        
+        return jsonify({
+            'message': 'Lezione completata!',
+            'lesson_completed': True,
+            'course_progress': course_progress
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Errore complete_lesson: {e}")
+        return jsonify({'error': f'Errore completamento lezione: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>', methods=['DELETE'])
+def delete_course(course_id):
+    """Elimina corso (solo admin/instructor)"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        course = db.session.get(Course, course_id)
+        if not course:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Solo admin o instructore del corso possono eliminare
+        if not user.is_admin and course.instructor_id != user.id:
+            return jsonify({'error': 'Non hai i permessi per eliminare questo corso'}), 403
+        
+        # Elimina il corso (cascade eliminerà lezioni, iscrizioni, progressi)
+        db.session.delete(course)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Corso eliminato con successo',
+            'deleted_course_id': course_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Errore delete_course: {e}")
+        return jsonify({'error': f'Errore eliminazione corso: {str(e)}'}), 500
+
+
+@app.route('/api/courses/<int:course_id>/progress', methods=['GET'])
+def get_course_progress(course_id):
+    """Ottieni progresso corso dell'utente"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        course = db.session.get(Course, course_id)
+        if not course:
+            return jsonify({'error': 'Corso non trovato'}), 404
+        
+        # Ottieni progresso dettagliato
+        total_lessons = course.get_total_lessons()
+        completed_lessons = LessonProgress.query.join(Lesson).filter(
+            Lesson.course_id == course_id,
+            LessonProgress.user_id == user.id,
+            LessonProgress.is_completed == True
+        ).count()
+        
+        progress_percentage = round((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0
+        
+        # Lezioni completate
+        completed_lesson_ids = [
+            p.lesson_id for p in LessonProgress.query.filter_by(
+                user_id=user.id, is_completed=True
+            ).all()
+        ]
+        
+        return jsonify({
+            'course_id': course_id,
+            'progress_percentage': progress_percentage,
+            'completed_lessons': completed_lessons,
+            'total_lessons': total_lessons,
+            'completed_lesson_ids': completed_lesson_ids,
+            'course': course.to_dict(user)
+        })
+    except Exception as e:
+        print(f"Errore get_course_progress: {e}")
+        return jsonify({'error': f'Errore caricamento progresso: {str(e)}'}), 500
+
+
+# ========================================
 # WEB ROUTES
 # ========================================
 
@@ -1448,4 +1546,5 @@ if __name__ == '__main__':
     print(f"🗑️ Eliminazione account: attivo")
     print(f"📁 Upload folder: {UPLOAD_FOLDER}")
     print(f"🎥 Video folder: {VIDEO_FOLDER}")
+    print(f"🔧 ENDPOINT CORSI: FIXED - get_course() e get_lesson() aggiunti!")
     app.run(host='0.0.0.0', port=port, debug=debug)
