@@ -1246,25 +1246,55 @@ def get_course(course_id):
 
 @app.route('/api/courses', methods=['POST'])
 def create_course():
-    """Crea nuovo corso (solo admin/instructor)"""
+    """Crea nuovo corso (solo admin/instructor) - CON UPLOAD IMMAGINE"""
     try:
         user = get_current_user()
         if not user or not user.is_admin:
             return jsonify({'error': 'Solo gli amministratori possono creare corsi'}), 403
         
-        data = _payload()
+        # Gestisce sia JSON che form-data (come per i post)
+        if request.is_json:
+            data = request.get_json()
+            file = None
+            print("🔍 JSON request for course creation")
+        else:
+            data = request.form.to_dict()
+            file = request.files.get('thumbnail')  # Campo per l'immagine del corso
+            print("🔍 Form request for course creation")
+        
         required = ['title', 'category', 'description']
         missing = [k for k in required if not data.get(k)]
         if missing:
             return jsonify({'error': 'Campi obbligatori mancanti', 'missing': missing}), 400
+        
+        thumbnail_url = data.get('thumbnail_url', '')
+        
+        # Gestione upload immagine
+        if file and file.filename:
+            print(f"🖼️ Processing course thumbnail: {file.filename}")
+            
+            if _allowed_file(file.filename) and get_file_type(file.filename) == 'image':
+                import uuid
+                filename = str(uuid.uuid4()) + '.' + file.filename.rsplit('.', 1)[1].lower()
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                
+                file.save(filepath)
+                
+                if os.path.exists(filepath):
+                    thumbnail_url = f"/uploads/{filename}"
+                    print(f"✅ Course thumbnail saved: {thumbnail_url}")
+                else:
+                    return jsonify({'error': 'Errore salvataggio immagine'}), 500
+            else:
+                return jsonify({'error': 'Formato immagine non supportato per il corso'}), 400
         
         course = Course(
             title=data['title'],
             description=data['description'],
             category=data['category'],
             course_type=data.get('course_type', 'CORSI'),
-            thumbnail_url=data.get('thumbnail_url', ''),
-            is_private=data.get('is_private', False),
+            thumbnail_url=thumbnail_url,
+            is_private=data.get('is_private', 'false').lower() == 'true',
             price=float(data.get('price', 0)),
             duration_hours=int(data.get('duration_hours', 0)),
             skill_level=data.get('skill_level', 'Beginner'),
@@ -1514,6 +1544,162 @@ def get_course_progress(course_id):
 
 
 # ========================================
+# API I MIEI CORSI
+# ========================================
+
+@app.route('/api/me/courses', methods=['GET'])
+def get_my_courses():
+    """Ottieni tutti i corsi a cui l'utente è iscritto"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        # Ottieni tutte le iscrizioni attive dell'utente
+        enrollments = Enrollment.query.filter_by(
+            user_id=user.id, 
+            is_active=True
+        ).all()
+        
+        enrolled_courses = []
+        for enrollment in enrollments:
+            course = enrollment.course
+            if course and course.is_active:
+                course_data = course.to_dict(user)
+                
+                # Aggiungi informazioni specifiche per l'iscrizione
+                course_data.update({
+                    'enrollment_date': enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
+                    'is_completed': enrollment.completed_at is not None,
+                    'completed_date': enrollment.completed_at.isoformat() if enrollment.completed_at else None,
+                    'enrolled_count': Enrollment.query.filter_by(course_id=course.id, is_active=True).count(),
+                    
+                    # Link diretti per accedere al corso
+                    'course_url': f'/courses/{course.id}',
+                    'lessons_url': f'/courses/{course.id}/lessons',
+                    'api_lessons_url': f'/api/courses/{course.id}/lessons',
+                    'api_progress_url': f'/api/courses/{course.id}/progress',
+                    
+                    # Status utente
+                    'can_access': True,
+                    'enrollment_status': 'active'
+                })
+                
+                enrolled_courses.append(course_data)
+        
+        # Aggiungi anche i corsi che l'utente insegna (se è admin)
+        taught_courses = []
+        if user.is_admin:
+            instructor_courses = Course.query.filter_by(
+                instructor_id=user.id, 
+                is_active=True
+            ).all()
+            
+            for course in instructor_courses:
+                course_data = course.to_dict(user)
+                course_data.update({
+                    'role': 'instructor',
+                    'enrolled_count': Enrollment.query.filter_by(course_id=course.id, is_active=True).count(),
+                    'course_url': f'/courses/{course.id}',
+                    'lessons_url': f'/courses/{course.id}/lessons',
+                    'manage_url': f'/admin/courses/{course.id}',
+                    'can_access': True,
+                    'enrollment_status': 'instructor'
+                })
+                taught_courses.append(course_data)
+        
+        return jsonify({
+            'enrolled_courses': enrolled_courses,
+            'taught_courses': taught_courses,
+            'total_enrolled': len(enrolled_courses),
+            'total_taught': len(taught_courses),
+            'user': user.to_dict(),
+            'message': 'Corsi caricati con successo'
+        })
+        
+    except Exception as e:
+        print(f"Errore get_my_courses: {e}")
+        return jsonify({'error': f'Errore caricamento corsi utente: {str(e)}'}), 500
+
+
+@app.route('/api/me/enrollments', methods=['GET'])
+def get_my_enrollments():
+    """Ottieni statistiche dettagliate delle iscrizioni dell'utente"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Login richiesto'}), 401
+        
+        # Iscrizioni attive
+        active_enrollments = Enrollment.query.filter_by(
+            user_id=user.id, 
+            is_active=True
+        ).join(Course).filter(Course.is_active == True).all()
+        
+        # Statistiche generali
+        total_progress = 0
+        courses_data = []
+        
+        for enrollment in active_enrollments:
+            course = enrollment.course
+            progress = course.get_user_progress(user.id)
+            total_progress += progress
+            
+            # Lezioni completate
+            completed_lessons = LessonProgress.query.join(Lesson).filter(
+                Lesson.course_id == course.id,
+                LessonProgress.user_id == user.id,
+                LessonProgress.is_completed == True
+            ).count()
+            
+            course_info = {
+                'id': course.id,
+                'title': course.title,
+                'category': course.category,
+                'course_type': course.course_type,
+                'thumbnail_url': course.thumbnail_url,
+                'instructor': course.instructor.to_dict() if course.instructor else None,
+                'progress_percentage': progress,
+                'completed_lessons': completed_lessons,
+                'total_lessons': course.get_total_lessons(),
+                'enrolled_date': enrollment.enrolled_at.isoformat(),
+                'is_completed': enrollment.completed_at is not None,
+                'price': course.price,
+                'duration_hours': course.duration_hours,
+                
+                # Link di accesso diretto
+                'access_links': {
+                    'course_page': f'/courses/{course.id}',
+                    'lessons': f'/courses/{course.id}/lessons',
+                    'continue_learning': f'/courses/{course.id}/lessons',
+                    'certificate': f'/courses/{course.id}/certificate' if enrollment.completed_at else None
+                }
+            }
+            courses_data.append(course_info)
+        
+        avg_progress = total_progress / len(active_enrollments) if active_enrollments else 0
+        
+        return jsonify({
+            'enrollments': courses_data,
+            'statistics': {
+                'total_enrolled_courses': len(active_enrollments),
+                'average_progress': round(avg_progress, 1),
+                'completed_courses': len([e for e in active_enrollments if e.completed_at]),
+                'in_progress_courses': len([e for e in active_enrollments if not e.completed_at])
+            },
+            'quick_access': {
+                'continue_learning': [c for c in courses_data if c['progress_percentage'] > 0 and c['progress_percentage'] < 100],
+                'new_courses': [c for c in courses_data if c['progress_percentage'] == 0],
+                'completed_courses': [c for c in courses_data if c['progress_percentage'] == 100]
+            }
+        })
+        
+    except Exception as e:
+        print(f"Errore get_my_enrollments: {e}")
+        return jsonify({'error': f'Errore caricamento iscrizioni: {str(e)}'}), 500
+
+
+# ========================================
 # WEB ROUTES
 # ========================================
 
@@ -1543,6 +1729,8 @@ if __name__ == '__main__':
     print(f"⭐ Sistema recensioni: attivo")
     print(f"💬 Sistema commenti: attivo")
     print(f"🎥 Upload video: ATTIVO con DEBUG")
+    print(f"🖼️ Upload immagini corso: ATTIVO")
+    print(f"📚 I MIEI CORSI API: ATTIVI")
     print(f"🗑️ Eliminazione account: attivo")
     print(f"📁 Upload folder: {UPLOAD_FOLDER}")
     print(f"🎥 Video folder: {VIDEO_FOLDER}")
