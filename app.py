@@ -1,6 +1,6 @@
 # ========================================
 # CourseConnect - Social Network per Corsisti  
-# app.py - Backend Flask con Sistema Completo + Video Fix + ENDPOINT CORSI FISSI
+# app.py - Backend Flask con Sistema Completo + Video Fix + ENDPOINT CORSI FISSI + FIX is_private
 # ========================================
 
 from flask import Flask, render_template, request, jsonify, session, send_from_directory
@@ -1216,7 +1216,7 @@ def get_courses():
 
 @app.route('/api/courses/<int:course_id>', methods=['GET'])
 def get_course(course_id):
-    """🔧 FIX: Ottieni dettagli di un singolo corso"""
+    """Ottieni dettagli di un singolo corso"""
     try:
         user = get_current_user()
         
@@ -1246,7 +1246,7 @@ def get_course(course_id):
 
 @app.route('/api/courses', methods=['POST'])
 def create_course():
-    """Crea nuovo corso (solo admin/instructor) - CON UPLOAD IMMAGINE"""
+    """Crea nuovo corso (solo admin/instructor) - CON UPLOAD IMMAGINE + FIX is_private"""
     try:
         user = get_current_user()
         if not user or not user.is_admin:
@@ -1294,7 +1294,7 @@ def create_course():
             category=data['category'],
             course_type=data.get('course_type', 'CORSI'),
             thumbnail_url=thumbnail_url,
-            is_private=data.get('is_private', 'false').lower() == 'true',
+            is_private=bool(data.get('is_private', False)),  # ← FIX: gestisce sia boolean che string
             price=float(data.get('price', 0)),
             duration_hours=int(data.get('duration_hours', 0)),
             skill_level=data.get('skill_level', 'Beginner'),
@@ -1386,7 +1386,7 @@ def get_course_lessons(course_id):
 
 @app.route('/api/lessons/<int:lesson_id>', methods=['GET'])
 def get_lesson(lesson_id):
-    """🔧 FIX: Ottieni dettagli di una singola lezione"""
+    """Ottieni dettagli di una singola lezione"""
     try:
         user = get_current_user()
         
@@ -1735,4 +1735,5 @@ if __name__ == '__main__':
     print(f"📁 Upload folder: {UPLOAD_FOLDER}")
     print(f"🎥 Video folder: {VIDEO_FOLDER}")
     print(f"🔧 ENDPOINT CORSI: FIXED - get_course() e get_lesson() aggiunti!")
+    print(f"✅ FIX is_private: RISOLTO - gestisce boolean e string")
     app.run(host='0.0.0.0', port=port, debug=debug)
